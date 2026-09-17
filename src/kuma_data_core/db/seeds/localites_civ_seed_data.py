@@ -25,6 +25,12 @@ selon la doctrine « aucune coordonnée inventée » :
   Le QID de l'entité district est cité dans ``notes`` pour la traçabilité.
   Les deux districts autonomes utilisent l'entité *district autonome*
   (Q19830972 Abidjan, Q19830973 Yamoussoukro), distincte de l'entité ville.
+  **Règle de sélection déterministe** quand ``P625`` porte plusieurs
+  valeurs : on retient le statement de rang ``preferred`` s'il existe,
+  sinon le premier statement dans l'ordre document Wikidata parmi les rangs
+  ``normal``. Trois entités sont concernées : ``CI-SV`` (Savanes) tranchée
+  par le rang ``preferred`` ; ``CI-VB`` (Vallée du Bandama) et ``CI-DN``
+  (Denguélé) par l'ordre document (deux statements ``normal`` équivalents).
 * **Population** (``population_estimee`` / ``annee_population`` = 2021) :
   **RGPH 2021** (5ᵉ Recensement Général de la Population et de l'Habitat,
   INS Côte d'Ivoire). Le total par district est l'agrégat des comptages
@@ -32,9 +38,13 @@ selon la doctrine « aucune coordonnée inventée » :
   (https://www.ins.ci/RGPH2021/RGPH2021-RESULTATS%20GLOBAUX_VF.pdf) ;
   contre-vérifié : Abidjan, Yamoussoukro et Zanzan concordent exactement
   avec les valeurs datées 2021 de Wikidata, le total national reconstitué
-  vaut ~29,39 millions (chiffre officiel RGPH 2021 : 29 389 150).
-* **Chef-lieu** de district : capitale administrative (Wikidata ``P36`` /
-  décret 2011-263), portée dans ``notes``.
+  vaut ~29,39 millions (chiffre officiel RGPH 2021 : 29 389 150). Étant un
+  agrégat reconstruit (le PDF INS n'étant pas récupérable en ligne), chaque
+  total porte une incertitude de l'ordre de ±quelques unités face au chiffre
+  district primaire.
+* **Chef-lieu** de district : capitale administrative de l'entité district
+  sur Wikidata (propriété ``P36``, rang ``normal`` ; les 14 valeurs ont été
+  résolues et concordent avec le décret 2011-263), portée dans ``notes``.
 
 L'``altitude_metres`` reste ``NULL`` : une région administrative n'a pas
 d'altitude ponctuelle univoque ; aucune valeur n'est inventée.
@@ -205,8 +215,8 @@ LOCALITES_SEED: list[dict[str, Any]] = [
         "civ_vallee_du_bandama",
         "Vallée du Bandama",
         "CI-VB",
-        8.25,
-        -4.82999992,
+        8.13333333,
+        -5.1,
         1_964_929,
         "Bouaké",
         "Q21002356",
