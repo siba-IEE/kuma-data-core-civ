@@ -173,6 +173,34 @@ def test_densification_population_rgph_2021(db_session: Session) -> None:
         assert row.annee_population == 2021, code
 
 
+def test_densification_pays_civ(db_session: Session) -> None:
+    """Le pays ``civ`` porte son centroïde Wikidata et la population RGPH 2021."""
+    row = db_session.execute(
+        text(
+            "SELECT latitude, longitude, population_estimee, annee_population "
+            "FROM localites WHERE code = 'civ'"
+        )
+    ).one()
+    assert float(row.latitude) == pytest.approx(8.0)
+    assert float(row.longitude) == pytest.approx(-6.0)
+    assert row.population_estimee == 29_389_150
+    assert row.annee_population == 2021
+
+
+def test_population_pays_coherente_avec_districts(db_session: Session) -> None:
+    """La population nationale concorde avec la somme des 14 districts (±quelques hab)."""
+    pays = db_session.execute(
+        text("SELECT population_estimee FROM localites WHERE code = 'civ'")
+    ).scalar_one()
+    somme_districts = db_session.execute(
+        text(
+            "SELECT sum(population_estimee) FROM localites "
+            "WHERE type_localite = 'region_administrative'"
+        )
+    ).scalar_one()
+    assert abs(int(somme_districts) - pays) <= 5
+
+
 def test_densification_chef_lieu_en_notes(db_session: Session) -> None:
     """Le chef-lieu de chaque district figure dans ``notes`` (avec la source RGPH)."""
     for code, attendu in _DISTRICTS_DENSIFIES.items():
