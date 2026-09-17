@@ -19,7 +19,7 @@ série ADR-0007.
   ``niveau_confiance_derive='B'`` (satellite/réanalyse ; A réservé au sol).
 
 Les valeurs proviennent du seed ``series_nasa_power_ghi_mensuel_civ`` (généré
-hors-ligne par ``scripts/ingest_nasa_power_ghi_mensuel.py`` ; la migration
+hors-ligne par ``scripts/ingest_nasa_power_mensuel.py`` ; la migration
 n'accède jamais au réseau — cf. README). ``downgrade`` supprime les mesures
 puis les séries.
 """

@@ -7,13 +7,15 @@ le projet suit le versionnement sémantique.
 
 ### Ajouté
 
-- Jalon 2 (donnée solaire brute) — première série : **GHI mensuel NASA POWER**,
-  climatologie 1991-2020, aux départements d'Abidjan, Yamoussoukro et Korhogo
-  (migration 0008, contrat de série ADR-0007). 3 séries × 360 mesures en
-  confiance B (satellite), unité kWh/m²/jour héritée de la grandeur `ghi`.
-  Ingesteur reproductible hors-ligne (`scripts/ingest_nasa_power_ghi_mensuel.py`)
-  → seed → migration ; valeurs recoupées (bornes physiques, 12 mois/an,
-  gradient nord-sud cohérent).
+- Jalon 2 (donnée solaire brute) — irradiation mensuelle **NASA POWER** aux
+  départements d'Abidjan, Yamoussoukro et Korhogo, confiance B (satellite),
+  unité kWh/m²/jour héritée de la grandeur (contrat de série ADR-0007) :
+  - **GHI** 1991-2020, 3 séries × 360 mesures (migration 0008) ;
+  - **DNI** 2001-2020, 3 séries × 240 mesures (migration 0009) — NASA POWER ne
+    fournit le DNI qu'à partir de 2001 ; chaque série documente sa période.
+  Ingesteur reproductible hors-ligne, paramétré par grandeur
+  (`scripts/ingest_nasa_power_mensuel.py`) → seed → migration ; garde-fous
+  bornes physiques, complétude et anti-remplissage (`-999`).
 - Densification sourcée des 14 districts de Côte d'Ivoire (migration 0004) :
   coordonnées (point représentatif Wikidata `P625`), population RGPH 2021
   (INS Côte d'Ivoire, total district agrégé des régions) et chef-lieu.

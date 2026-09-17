@@ -1,12 +1,12 @@
 """Séries GHI mensuel NASA POWER (climatologie 1991-2020) — instance CIV.
 
-**Fichier généré** par ``scripts/ingest_nasa_power_ghi_mensuel.py`` ; ne pas
-éditer à la main. Contrat de série : ADR-0007.
+**Fichier généré** par ``scripts/ingest_nasa_power_mensuel.py`` ; ne pas éditer
+à la main. Contrat de série : ADR-0007.
 
 Chaque mesure ``(annee, mois, valeur)`` est la **moyenne journalière** du mois
 en **kWh/m²/jour** (grandeur ``ghi`` -> unité ``kwh_par_m2_jour``), source
 ``nasa_power`` (``ALLSKY_SFC_SW_DWN``), confiance **B**
-(satellite/réanalyse). 12 mois/an, 1991-2020 (360 mesures/série).
+(satellite/réanalyse). 12 mois/an, 1991-2020.
 """
 
 from __future__ import annotations
@@ -21,6 +21,8 @@ NIVEAU_CONFIANCE: str = "B"
 PARAMETRE_NASA: str = "ALLSKY_SFC_SW_DWN"
 PERIODE_DEBUT: str = "1991-01-01"
 PERIODE_FIN: str = "2020-12-31"
+ANNEE_DEBUT: int = 1991
+ANNEE_FIN: int = 2020
 
 SERIES: list[dict[str, Any]] = [
     {
@@ -1133,11 +1135,11 @@ SERIES: list[dict[str, Any]] = [
 ]
 
 
-_ATTENDU = (2020 - 1991 + 1) * 12
+_ATTENDU = (ANNEE_FIN - ANNEE_DEBUT + 1) * 12
 for _s in SERIES:
     assert len(_s["mesures"]) == _ATTENDU, (_s["code"], len(_s["mesures"]))
     for _annee, _mois, _valeur in _s["mesures"]:
-        assert 1 <= _mois <= 12 and 1991 <= _annee <= 2020
+        assert 1 <= _mois <= 12 and ANNEE_DEBUT <= _annee <= ANNEE_FIN
         assert 0.0 <= _valeur <= 7.0
 _codes = {_s["code"] for _s in SERIES}
 assert len(_codes) == len(SERIES), "codes de série dupliqués"
