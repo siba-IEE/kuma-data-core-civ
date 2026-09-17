@@ -32,7 +32,10 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
         Korhogo), confiance B (migration 0008, ADR-0007).
   - [x] DNI mensuel NASA POWER, 2001-2020 (couverture DNI NASA POWER), mêmes
         3 points (migration 0009).
-  - [ ] DHI, autres points, autres sources (SARAH-3, CAMS, ERA5-Land).
+  - [x] GHI mensuel SARAH-3 (PVGIS), 2005-2020, mêmes 3 points (migration
+        0010, ADR-0008) — 2ᵉ source, écart inter-source calculable en base
+        (SARAH-3 systématiquement plus haut que NASA POWER, +7 à +17 %).
+  - [ ] DHI, autres points, CAMS/ERA5-Land ; écart inter-source dérivé (Jalon 3).
 - [ ] Chaîne d'ingestion reproductible.
   - [x] Ingesteur NASA POWER mensuel (`scripts/ingest_nasa_power_mensuel.py`,
         paramétré par grandeur, hors-ligne → seed → migration ; garde-fous
