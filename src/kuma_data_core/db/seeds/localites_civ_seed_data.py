@@ -49,9 +49,11 @@ selon la doctrine « aucune coordonnée inventée » :
 L'``altitude_metres`` reste ``NULL`` : une région administrative n'a pas
 d'altitude ponctuelle univoque ; aucune valeur n'est inventée.
 
-La racine continentale et le pays ``civ`` conservent leur sourçage initial
-(le centroïde et la population nationale du pays relèvent d'une densification
-ultérieure, hors périmètre de cette passe « districts »).
+Le pays ``civ`` est lui aussi densifié : centroïde Wikidata Q1008 (``P625``)
+et population nationale RGPH 2021 (29 389 150 hab.), chiffre officiel absent
+de Wikidata mais recoupé par la somme des 14 districts. La racine
+continentale ``afrique`` conserve son sourçage initial (entité structurelle,
+sans centroïde).
 
 Les niveaux inférieurs (31 régions au niveau ``prefecture``, 108
 départements au niveau ``commune`` ou ``site`` selon le mapping retenu)
@@ -134,17 +136,21 @@ LOCALITES_SEED: list[dict[str, Any]] = [
         "type_localite": "pays",
         "parent_code": "afrique",
         "pays_iso3": "CIV",
-        "latitude": None,
-        "longitude": None,
+        "latitude": 8.0,
+        "longitude": -6.0,
         "altitude_metres": None,
-        "population_estimee": None,
-        "annee_population": None,
+        "population_estimee": 29_389_150,
+        "annee_population": 2021,
         "fuseau_horaire": "Africa/Abidjan",
         "notes": (
             "Code ISO 3166-1 alpha-3 : CIV. Capitale politique : Yamoussoukro ; "
             "capitale économique : Abidjan. Fuseau UTC+00:00 (Africa/Abidjan). "
-            "Centroïde et population nationale (RGPH 2021 : 29 389 150 hab.) à "
-            "densifier en passe ultérieure. Aucune coordonnée n'est inventée hors-ligne."
+            "Centroïde : point représentatif Wikidata Q1008 (P625, rang normal ; "
+            "valeur grossière arrondie au degré). Population nationale RGPH 2021 "
+            "(INS Côte d'Ivoire) : 29 389 150 hab. — chiffre officiel absent de "
+            "Wikidata (P1082 s'arrête à 2017 puis 2023), recoupé par la somme des "
+            "14 districts (29 389 152, écart d'arrondi +2). Altitude non renseignée "
+            "(pas d'altitude ponctuelle univoque pour un pays)."
         ),
     },
     # ===== Districts (14 : 12 districts + 2 districts autonomes), ISO 3166-2:CI =====
