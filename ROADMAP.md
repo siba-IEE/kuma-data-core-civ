@@ -28,12 +28,15 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
 
 - [ ] Séries et mesures brutes par source (NASA POWER, SARAH-3 via PVGIS, CAMS,
       ERA5-Land) aux points ivoiriens, en confiance B.
-  - [x] 1ʳᵉ série : GHI mensuel NASA POWER, climatologie 1991-2020, 3 points
-        (Abidjan, Yamoussoukro, Korhogo), confiance B (migration 0008, ADR-0007).
-  - [ ] DNI/DHI, autres points, autres sources (SARAH-3, CAMS, ERA5-Land).
+  - [x] GHI mensuel NASA POWER, 1991-2020, 3 points (Abidjan, Yamoussoukro,
+        Korhogo), confiance B (migration 0008, ADR-0007).
+  - [x] DNI mensuel NASA POWER, 2001-2020 (couverture DNI NASA POWER), mêmes
+        3 points (migration 0009).
+  - [ ] DHI, autres points, autres sources (SARAH-3, CAMS, ERA5-Land).
 - [ ] Chaîne d'ingestion reproductible.
-  - [x] Ingesteur NASA POWER mensuel (`scripts/ingest_nasa_power_ghi_mensuel.py`,
-        hors-ligne → seed → migration ; contrôles bornes/complétude).
+  - [x] Ingesteur NASA POWER mensuel (`scripts/ingest_nasa_power_mensuel.py`,
+        paramétré par grandeur, hors-ligne → seed → migration ; garde-fous
+        bornes/complétude/anti-remplissage).
 
 ## Jalon 3 : grandeurs et qualité
 
