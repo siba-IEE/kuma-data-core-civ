@@ -57,6 +57,15 @@ _DISTRICTS_DENSIFIES = {
 _CIV_LAT_MIN, _CIV_LAT_MAX = 4.0, 11.0
 _CIV_LON_MIN, _CIV_LON_MAX = -9.0, -2.0
 
+# Districts dont l'entité Wikidata porte PLUSIEURS points P625 : la coordonnée
+# retenue suit la règle déterministe (rang ``preferred`` sinon 1ᵉʳ statement
+# ``normal`` en ordre document). Valeurs figées pour prévenir toute régression.
+_COORD_MULTI_POINTS = {
+    "civ_savanes": (9.41666667, -5.61666667),  # tranché par rang preferred
+    "civ_vallee_du_bandama": (8.13333333, -5.1),  # 1er statement normal (ordre document)
+    "civ_denguele": (9.5, -7.41699982),  # 1er statement normal (ordre document)
+}
+
 
 def test_nombre_total_localites(db_session: Session) -> None:
     """16 localités : 1 continent + 1 pays + 14 districts."""
@@ -140,6 +149,17 @@ def test_densification_coordonnees_dans_bornes_civ(db_session: Session) -> None:
         assert row.longitude is not None, row.code
         assert _CIV_LAT_MIN <= float(row.latitude) <= _CIV_LAT_MAX, row.code
         assert _CIV_LON_MIN <= float(row.longitude) <= _CIV_LON_MAX, row.code
+
+
+def test_densification_coordonnees_multi_points_deterministes(db_session: Session) -> None:
+    """Districts à points P625 multiples : la coordonnée retenue est figée (règle de rang)."""
+    for code, (lat, lon) in _COORD_MULTI_POINTS.items():
+        row = db_session.execute(
+            text("SELECT latitude, longitude FROM localites WHERE code = :c"),
+            {"c": code},
+        ).one()
+        assert float(row.latitude) == pytest.approx(lat), code
+        assert float(row.longitude) == pytest.approx(lon), code
 
 
 def test_densification_population_rgph_2021(db_session: Session) -> None:
