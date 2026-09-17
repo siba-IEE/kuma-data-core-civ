@@ -46,15 +46,23 @@ dérivable, et la table impose ``mois BETWEEN 1 AND 12`` (garde-fou structurel).
 = 'B'``. Le niveau A reste réservé à la mesure sol (ancre ESMAP, Jalon 4). C'est
 un acte éditorial assumé, cohérent avec le modèle A/B/C du schéma.
 
-**Reproductibilité.** Les valeurs sont figées dans le seed
-``series_nasa_power_ghi_mensuel_civ`` (module Python), **régénérable** par
-``scripts/ingest_nasa_power_ghi_mensuel.py`` (accès réseau). La migration 0008
-lit ce seed et n'accède jamais au réseau (invariant README :
-``alembic upgrade head`` hors-ligne).
+**Reproductibilité.** Les valeurs sont figées dans des modules de seed
+(``series_nasa_power_<grandeur>_mensuel_civ``), **régénérables** par
+``scripts/ingest_nasa_power_mensuel.py`` (accès réseau). Les migrations 0008
+(GHI) / 0009 (DNI) lisent ces seeds et n'accèdent jamais au réseau (invariant
+README : ``alembic upgrade head`` hors-ligne).
 
 **Périmètre initial.** 3 points au niveau département (Abidjan, Yamoussoukro,
-Korhogo), grandeur ``ghi`` seule. DNI, DHI et davantage de points suivront (une
-série = un ajout, sans nouvelle décision de contrat).
+Korhogo). Grandeurs :
+- ``ghi`` (``ALLSKY_SFC_SW_DWN``), période **1991-2020** (360 mois) — migration 0008 ;
+- ``dni`` (``ALLSKY_SFC_SW_DNI``), période **2001-2020** (240 mois) — migration 0009.
+
+**Couverture par grandeur.** La période n'est pas identique pour toutes les
+grandeurs : NASA POWER ne fournit le **DNI qu'à partir de 2001** (avant, la
+série est remplie de ``-999``). Plutôt que de graver un trou ou d'inventer, on
+grave la couverture réelle disponible (DNI : 2001-2020), et chaque série
+documente sa propre ``periode_debut``/``periode_fin``. DHI et davantage de
+points suivront (une série = un ajout, sans nouvelle décision de contrat).
 
 ## Conséquences
 

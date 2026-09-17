@@ -1,25 +1,35 @@
-"""Tests d'intégration de la première série solaire brute (migration 0008).
+"""Tests d'intégration des séries solaires brutes NASA POWER (migrations 0008-0009).
 
-GHI mensuel NASA POWER, climatologie 1991-2020, 3 points CIV (ADR-0007) :
-métadonnées de série, complétude (360 mesures/série), invariants (mois 1-12,
-confiance B, statut brut, bornes physiques) et fidélité au seed.
+Irradiation mensuelle NASA POWER aux 3 points CIV (ADR-0007), paramétré par
+grandeur : GHI (1991-2020, 360 mesures) et DNI (2001-2020, 240 mesures — le
+DNI NASA POWER ne commence qu'en 2001). Métadonnées de série, complétude,
+invariants (mois 1-12, confiance B, statut brut, bornes) et fidélité au seed.
 """
 
 from __future__ import annotations
+
+from types import ModuleType
 
 import pytest
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from kuma_data_core.db.seeds.series_nasa_power_ghi_mensuel_civ import SERIES
+from kuma_data_core.db.seeds import series_nasa_power_dni_mensuel_civ as dni_seed
+from kuma_data_core.db.seeds import series_nasa_power_ghi_mensuel_civ as ghi_seed
 
 pytestmark = pytest.mark.integration
 
-_CODES = [s["code"] for s in SERIES]
+_SEEDS = [ghi_seed, dni_seed]
 
 
-def test_trois_series_nasa_power(db_session: Session) -> None:
-    """3 séries NASA POWER GHI mensuel, rattachées à leur localité et à la source."""
+def _attendu_mois(seed: ModuleType) -> int:
+    return (seed.ANNEE_FIN - seed.ANNEE_DEBUT + 1) * 12
+
+
+@pytest.mark.parametrize("seed", _SEEDS, ids=lambda m: m.GRANDEUR_CODE)
+def test_series_metadonnees(db_session: Session, seed: ModuleType) -> None:
+    """Chaque série porte les bonnes métadonnées (source, grandeur, période, localité)."""
+    codes = [s["code"] for s in seed.SERIES]
     lignes = db_session.execute(
         text(
             """
@@ -31,22 +41,23 @@ def test_trois_series_nasa_power(db_session: Session) -> None:
             WHERE s.code = ANY(:c)
             """
         ),
-        {"c": _CODES},
+        {"c": codes},
     ).all()
-    assert {r.code for r in lignes} == set(_CODES)
-    localites_attendues = {s["code"]: s["localite_code"] for s in SERIES}
+    assert {r.code for r in lignes} == set(codes)
+    localites = {s["code"]: s["localite_code"] for s in seed.SERIES}
     for r in lignes:
-        assert r.grandeur_code == "ghi", r.code
+        assert r.grandeur_code == seed.GRANDEUR_CODE, r.code
         assert r.granularite == "mensuel", r.code
         assert r.methode_collecte == "modele_satellitaire", r.code
         assert r.source == "nasa_power", r.code
-        assert str(r.periode_debut) == "1991-01-01" and str(r.periode_fin) == "2020-12-31"
-        assert r.localite == localites_attendues[r.code], r.code
+        assert str(r.periode_debut) == seed.PERIODE_DEBUT and str(r.periode_fin) == seed.PERIODE_FIN
+        assert r.localite == localites[r.code], r.code
 
 
-def test_360_mesures_par_serie(db_session: Session) -> None:
-    """Chaque série porte 360 mesures (12 mois sur 30 ans), mois 1-12, années 1991-2020."""
-    for code in _CODES:
+@pytest.mark.parametrize("seed", _SEEDS, ids=lambda m: m.GRANDEUR_CODE)
+def test_completude_mesures(db_session: Session, seed: ModuleType) -> None:
+    """Chaque série a le bon nombre de mesures, mois 1-12, années dans la période."""
+    for code in (s["code"] for s in seed.SERIES):
         rows = db_session.execute(
             text(
                 """
@@ -57,13 +68,15 @@ def test_360_mesures_par_serie(db_session: Session) -> None:
             ),
             {"c": code},
         ).all()
-        assert len(rows) == 360, code
+        assert len(rows) == _attendu_mois(seed), code
         assert {r.mois for r in rows} == set(range(1, 13)), code
-        assert {r.annee for r in rows} == set(range(1991, 2021)), code
+        assert {r.annee for r in rows} == set(range(seed.ANNEE_DEBUT, seed.ANNEE_FIN + 1)), code
 
 
-def test_invariants_mesures(db_session: Session) -> None:
-    """Toutes les mesures : statut brut, confiance B, GHI dans les bornes physiques."""
+@pytest.mark.parametrize("seed", _SEEDS, ids=lambda m: m.GRANDEUR_CODE)
+def test_invariants_mesures(db_session: Session, seed: ModuleType) -> None:
+    """Toutes les mesures : statut brut, confiance B, valeur positive."""
+    codes = [s["code"] for s in seed.SERIES]
     rows = db_session.execute(
         text(
             """
@@ -73,18 +86,19 @@ def test_invariants_mesures(db_session: Session) -> None:
             WHERE s.code = ANY(:c)
             """
         ),
-        {"c": _CODES},
+        {"c": codes},
     ).all()
-    assert len(rows) == 360 * len(_CODES)
+    assert len(rows) == _attendu_mois(seed) * len(codes)
     for r in rows:
         assert r.statut == "brut"
         assert r.niveau_confiance_derive == "B"
-        assert 0.0 <= r.valeur <= 7.0
+        assert 0.0 <= r.valeur <= 9.0
 
 
-def test_unite_heritee_de_la_grandeur(db_session: Session) -> None:
-    """La grandeur ``ghi`` de la série fixe l'unité kWh/m²/jour (kwh_par_m2_jour)."""
-    symbole = db_session.execute(
+@pytest.mark.parametrize("seed", _SEEDS, ids=lambda m: m.GRANDEUR_CODE)
+def test_unite_heritee_de_la_grandeur(db_session: Session, seed: ModuleType) -> None:
+    """La grandeur de la série fixe l'unité kWh/m²/jour (kwh_par_m2_jour)."""
+    unite = db_session.execute(
         text(
             """
             SELECT u.code AS unite_code
@@ -94,17 +108,16 @@ def test_unite_heritee_de_la_grandeur(db_session: Session) -> None:
             WHERE s.code = :c
             """
         ),
-        {"c": _CODES[0]},
+        {"c": seed.SERIES[0]["code"]},
     ).scalar_one()
-    assert symbole == "kwh_par_m2_jour"
+    assert unite == "kwh_par_m2_jour"
 
 
-def test_valeurs_fideles_au_seed(db_session: Session) -> None:
-    """Les valeurs gravées correspondent exactement au seed (échantillon de bornes)."""
-    for s in SERIES:
-        premier = s["mesures"][0]  # (1991, 1, valeur)
-        dernier = s["mesures"][-1]  # (2020, 12, valeur)
-        for annee, mois, attendu in (premier, dernier):
+@pytest.mark.parametrize("seed", _SEEDS, ids=lambda m: m.GRANDEUR_CODE)
+def test_valeurs_fideles_au_seed(db_session: Session, seed: ModuleType) -> None:
+    """Les valeurs gravées correspondent exactement au seed (bornes de chaque série)."""
+    for s in seed.SERIES:
+        for annee, mois, attendu in (s["mesures"][0], s["mesures"][-1]):
             valeur = db_session.execute(
                 text(
                     """

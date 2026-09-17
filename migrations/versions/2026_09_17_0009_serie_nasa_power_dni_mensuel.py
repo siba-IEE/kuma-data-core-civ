@@ -1,27 +1,26 @@
-"""serie_nasa_power_ghi_mensuel
+"""serie_nasa_power_dni_mensuel
 
-Revision ID: 0008
-Revises: 0007
+Revision ID: 0009
+Revises: 0008
 Create Date: 2026-09-17
 
-Première ingestion de donnée solaire brute (Jalon 2) : GHI mensuel **NASA
-POWER**, climatologie **1991-2020**, à 3 points ivoiriens (départements
-d'Abidjan, Yamoussoukro, Korhogo — sud / centre / nord). Voir le contrat de
-série ADR-0007.
+Deuxième grandeur solaire brute (Jalon 2) : DNI mensuel **NASA POWER** aux
+mêmes 3 points que le GHI (départements d'Abidjan, Yamoussoukro, Korhogo).
+Même contrat de série qu'ADR-0007, à une différence de **couverture** près :
+NASA POWER ne fournit le DNI qu'à partir de **2001** (avant, la série est
+remplie de -999). La période DNI est donc **2001-2020** (240 mois), là où le
+GHI couvre 1991-2020 — chaque série documente sa propre période.
 
-- ``series_metadonnees`` : une série par point (source ``nasa_power``,
-  grandeur ``ghi``, granularité ``mensuel``, méthode ``modele_satellitaire``,
-  période 1991-01-01 → 2020-12-31). ``localite_id`` et ``source_id`` résolus
-  depuis la base (localités posées en 0003-0007, source seedée en 0002).
-- ``mesures_ressource_mensuelles`` : 360 mesures par série (12 mois sur 30 ans),
-  ``valeur`` = moyenne journalière du mois en kWh/m²/jour (unité fixée par la
-  grandeur ``ghi`` -> ``kwh_par_m2_jour``), ``statut='brut'``,
-  ``niveau_confiance_derive='B'`` (satellite/réanalyse ; A réservé au sol).
+- ``series_metadonnees`` : une série DNI par point (source ``nasa_power``,
+  grandeur ``dni``, granularité ``mensuel``, méthode ``modele_satellitaire``,
+  période 2001-01-01 → 2020-12-31). Unité kWh/m²/jour fixée par la grandeur
+  ``dni`` -> ``kwh_par_m2_jour``.
+- ``mesures_ressource_mensuelles`` : 240 mesures par série, ``statut='brut'``,
+  ``niveau_confiance_derive='B'`` (satellite/réanalyse).
 
-Les valeurs proviennent du seed ``series_nasa_power_ghi_mensuel_civ`` (généré
-hors-ligne par ``scripts/ingest_nasa_power_mensuel.py`` ; la migration
-n'accède jamais au réseau — cf. README). ``downgrade`` supprime les mesures
-puis les séries.
+Valeurs figées dans le seed ``series_nasa_power_dni_mensuel_civ`` (généré
+hors-ligne par ``scripts/ingest_nasa_power_mensuel.py``) ; la migration
+n'accède jamais au réseau. ``downgrade`` supprime les mesures puis les séries.
 """
 
 from __future__ import annotations
@@ -32,7 +31,7 @@ from typing import Any
 import sqlalchemy as sa
 from alembic import op
 
-from kuma_data_core.db.seeds.series_nasa_power_ghi_mensuel_civ import (
+from kuma_data_core.db.seeds.series_nasa_power_dni_mensuel_civ import (
     GRANDEUR_CODE,
     GRANULARITE,
     METHODE_COLLECTE,
@@ -44,8 +43,8 @@ from kuma_data_core.db.seeds.series_nasa_power_ghi_mensuel_civ import (
 )
 
 # revision identifiers, used by Alembic.
-revision: str = "0008"
-down_revision: str | Sequence[str] | None = "0007"
+revision: str = "0009"
+down_revision: str | Sequence[str] | None = "0008"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -59,7 +58,7 @@ def upgrade() -> None:
         sa.text("SELECT id FROM sources WHERE code = :c"), {"c": SOURCE_CODE}
     ).scalar_one_or_none()
     if source_id is None:
-        raise RuntimeError(f"Migration 0008 : source {SOURCE_CODE!r} introuvable (seed 0002).")
+        raise RuntimeError(f"Migration 0009 : source {SOURCE_CODE!r} introuvable (seed 0002).")
 
     codes_loc = sorted({s["localite_code"] for s in SERIES})
     loc = {
@@ -70,7 +69,7 @@ def upgrade() -> None:
     }
     manquants = [c for c in codes_loc if c not in loc]
     if manquants:
-        raise RuntimeError(f"Migration 0008 : localité(s) introuvable(s) : {manquants!r}.")
+        raise RuntimeError(f"Migration 0009 : localité(s) introuvable(s) : {manquants!r}.")
 
     series_table = sa.table(
         "series_metadonnees",
@@ -99,8 +98,8 @@ def upgrade() -> None:
                 "methode_collecte": METHODE_COLLECTE,
                 "granularite": GRANULARITE,
                 "note_publique": (
-                    "GHI mensuel NASA POWER (moyenne journalière du mois, kWh/m²/jour), "
-                    "climatologie 1991-2020. Confiance B (satellite/réanalyse)."
+                    "DNI mensuel NASA POWER (moyenne journalière du mois, kWh/m²/jour), "
+                    "2001-2020 (couverture DNI NASA POWER). Confiance B (satellite/réanalyse)."
                 ),
             }
             for s in SERIES
