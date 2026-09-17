@@ -3,6 +3,16 @@
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et
 le projet suit le versionnement sémantique.
 
+## Non publié
+
+### Ajouté
+
+- Densification sourcée des 14 districts de Côte d'Ivoire (migration 0004) :
+  coordonnées (point représentatif Wikidata `P625`), population RGPH 2021
+  (INS Côte d'Ivoire, total district agrégé des régions) et chef-lieu.
+  Doctrine « aucune coordonnée inventée » respectée ; l'altitude d'une région
+  reste `NULL`.
+
 ## 0.1.0
 
 Amorçage de l'instance Côte d'Ivoire, à partir d'un socle propre.

@@ -8,6 +8,8 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
 
 - [x] Pays `civ` et 14 districts (`region_administrative`), nomenclature
       ISO 3166-2:CI.
+- [x] Densification sourcée des 14 districts : coordonnées (Wikidata `P625`),
+      population RGPH 2021 (INS Côte d'Ivoire), chef-lieu (migration 0004).
 - [ ] 31 régions (`prefecture`) avec coordonnées, population et sourçage
       (Wikidata, HDX/COD-AB, INS Côte d'Ivoire).
 - [ ] 108 départements (niveau `commune` ou `site` selon le mapping retenu), même
