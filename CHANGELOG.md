@@ -16,6 +16,13 @@ le projet suit le versionnement sémantique.
   Ingesteur reproductible hors-ligne, paramétré par grandeur
   (`scripts/ingest_nasa_power_mensuel.py`) → seed → migration ; garde-fous
   bornes physiques, complétude et anti-remplissage (`-999`).
+- Jalon 2 — 2ᵉ source : **GHI mensuel SARAH-3 (PVGIS)** 2005-2020 aux mêmes
+  3 points (migration 0010, ADR-0008). 3 séries × 192 mesures, confiance B,
+  valeur normalisée (irradiation mensuelle totale PVGIS ÷ jours du mois →
+  moyenne journalière kWh/m²/jour). Amorce l'**écart inter-source** : SARAH-3
+  est systématiquement plus haut que NASA POWER (+6,6 à +16,6 % selon le point),
+  désaccord réel calculable directement en base. Ingesteur dédié
+  (`scripts/ingest_pvgis_sarah3_mensuel.py`).
 - Densification sourcée des 14 districts de Côte d'Ivoire (migration 0004) :
   coordonnées (point représentatif Wikidata `P625`), population RGPH 2021
   (INS Côte d'Ivoire, total district agrégé des régions) et chef-lieu.
