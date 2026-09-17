@@ -26,11 +26,12 @@ selon la doctrine « aucune coordonnée inventée » :
   Les deux districts autonomes utilisent l'entité *district autonome*
   (Q19830972 Abidjan, Q19830973 Yamoussoukro), distincte de l'entité ville.
   **Règle de sélection déterministe** quand ``P625`` porte plusieurs
-  valeurs : on retient le statement de rang ``preferred`` s'il existe,
-  sinon le premier statement dans l'ordre document Wikidata parmi les rangs
-  ``normal``. Trois entités sont concernées : ``CI-SV`` (Savanes) tranchée
-  par le rang ``preferred`` ; ``CI-VB`` (Vallée du Bandama) et ``CI-DN``
-  (Denguélé) par l'ordre document (deux statements ``normal`` équivalents).
+  valeurs (cf. ADR-0006) : on retient le statement de rang ``preferred``
+  s'il existe, sinon le premier statement dans l'ordre document Wikidata
+  parmi les rangs ``normal``. Trois entités sont concernées : ``CI-SV``
+  (Savanes) tranchée par le rang ``preferred`` ; ``CI-VB`` (Vallée du
+  Bandama) et ``CI-DN`` (Denguélé) par l'ordre document (deux statements
+  ``normal`` équivalents).
 * **Population** (``population_estimee`` / ``annee_population`` = 2021) :
   **RGPH 2021** (5ᵉ Recensement Général de la Population et de l'Habitat,
   INS Côte d'Ivoire). Le total par district est l'agrégat des comptages
@@ -61,7 +62,7 @@ Les **31 régions** actuelles (réforme de 2011) sont ajoutées au niveau
 générique ``prefecture`` (cf. ADR-0005 : ``type_localite`` est un axe
 technique, l'identité ivoirienne reste dans ``nom`` / ``notes``). Chaque
 région est rattachée à son **district parent** (relation Wikidata ``P131``),
-avec coordonnées Wikidata (``P625``, règle de rang de l'ADR coordonnées),
+avec coordonnées Wikidata (``P625``, règle de sélection de l'ADR-0006),
 chef-lieu, et population **RGPH 2021** (INS) dont la somme par district
 reproduit exactement le total du district. Réserves documentées en ``notes`` :
 
