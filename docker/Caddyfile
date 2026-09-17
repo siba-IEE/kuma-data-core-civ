@@ -1,0 +1,58 @@
+# Reverse proxy TLS de l'API publique Kuma Data Core (ADR-0003, WP8).
+#
+# Caddy est le seul service exposé au réseau public. Il termine le TLS
+# (certificat Let's Encrypt obtenu et renouvelé automatiquement) et relaie
+# vers l'API sur le réseau Docker interne.
+#
+# Point de sécurité clé (ADR-0003 D2) : la directive reverse_proxy de Caddy
+# AJOUTE l'IP réelle du pair en fin de chaîne X-Forwarded-For (elle ne strippe
+# pas un en-tête client entrant, elle l'append). L'API lit la DERNIERE entrée
+# (DERRIERE_PROXY_CONFIANCE=true) : c'est celle ajoutée par Caddy, non
+# falsifiable - un client qui préfixe des IP fictives ne peut pas insérer
+# après. Il ne peut donc pas forger son IP pour contourner la limite
+# d'émission de clés. Vaut pour une topologie à UN proxy de confiance (Caddy) :
+# si un CDN/proxy amont est intercalé un jour, revoir cette hypothèse.
+
+{$KUMA_DOMAINE} {
+	# TLS automatique (Let's Encrypt). Renseigner un e-mail pour les
+	# notifications d'expiration : remplacer ci-dessous.
+	tls admin@{$KUMA_DOMAINE}
+
+	encode gzip
+
+	# En-têtes de durcissement côté réponse.
+	header {
+		# HSTS : force HTTPS pendant 1 an (à activer une fois le domaine
+		# stable et le certificat confirmé).
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		# Ne pas divulguer le logiciel serveur.
+		-Server
+	}
+
+	reverse_proxy kuma-api-prod:8000
+
+	log {
+		output stdout
+		format json
+	}
+}
+
+# Forum Discourse de la Communaute Kuma Science (runbook
+# docs/hub-discourse-installation.md, depot kuma-science). Discourse pose
+# ses propres en-tetes de securite : bloc volontairement minimal, TLS
+# automatique + relais vers le conteneur app (reseau docker_kuma_interne).
+forum.kumascience.com {
+        tls admin@kumascience.com
+
+        encode gzip
+
+        reverse_proxy app:80
+
+        log {
+                output stdout
+                format json
+        }
+}

@@ -1,0 +1,128 @@
+[project]
+name = "kuma-data-core-civ"
+version = "0.1.0"
+description = "Moteur de données à confiance tracée (niveaux A/B/C), versionnement temporel non destructif et audit applicatif. Base PostgreSQL et API FastAPI. Instance dédiée : ressource solaire en Côte d'Ivoire."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "AGPL-3.0-or-later" }
+authors = [
+    { name = "Siba Kalivogui" },
+]
+keywords = ["kuma", "energie", "solaire", "afrique", "donnees", "postgresql", "fastapi"]
+classifiers = [
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "sqlalchemy>=2.0",
+    "alembic>=1.13",
+    "psycopg[binary]>=3.2",
+    "redis>=5.0",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.4",
+    "httpx>=0.27",
+    "structlog>=24.1",
+    "pvlib>=0.15.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.2",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "pre-commit>=3.7",
+    "cdsapi>=0.7.7",
+    "xarray>=2026.4.0",
+    "netcdf4>=1.7.4",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kuma_data_core"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "RUF"]
+[tool.ruff.lint.per-file-ignores]
+# Les fichiers de seed et migrations contiennent des notes méthodologiques
+# - × (U+00D7 multiplication sign), pas x
+# - − (U+2212 minus sign), pas hyphen
+# - ν, ρ, Ω, Δ, ², ³, ⁻¹⁹ (lettres grecques et exposants Unicode)
+# Ces caractères sont scientifiquement requis et ne doivent pas être ASCII-fiés.
+# Les notes méthodologiques contiennent aussi de longues chaînes (E501) qui
+# perdent en lisibilité si on les coupe artificiellement en plusieurs lignes.
+"src/kuma_data_core/db/seeds/*.py" = ["RUF001", "RUF002", "RUF003", "E501"]
+"migrations/versions/*.py" = ["RUF001", "RUF002", "RUF003", "E501"]
+"src/kuma_data_core/db/models/unites.py" = ["RUF001", "RUF002", "RUF003"]
+# Grandeurs métier F1/F2 avec formules NREL/OMM utilisant × (multiplication),
+# − (moins), °C, kWh/m², etc. — mêmes conventions que les seeds et modèles.
+"src/kuma_data_core/services/grandeurs/*.py" = ["RUF001", "RUF002", "RUF003"]
+"scripts/*.py" = ["RUF001", "RUF002", "RUF003", "E501"]
+"tests/unit/services/grandeurs/*.py" = ["RUF001", "RUF002", "RUF003"]
+# Le code API et les tests utilisent des identifiants en français pour
+# refléter le domaine métier (cf. docs/conventions/01-naming.md). La
+# règle pep8-naming (N) impose snake_case anglais ; on la désactive
+# globalement sur ces deux périmètres.
+"src/kuma_data_core/api/**/*.py" = ["N"]
+"tests/**/*.py" = ["N"]
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+files = ["src"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+]
+markers = [
+    "unit: tests unitaires rapides, sans dépendances externes",
+    "integration: tests d'intégration nécessitant des services (PostgreSQL, Redis)",
+    "regression: tests de régression sur jeux de données de référence",
+    "empirique_nasa_power: pré-tests empiriques avec appel réel à l'API NASA POWER (exclu de la suite régulière, exécuté manuellement)",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["src/kuma_data_core"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]

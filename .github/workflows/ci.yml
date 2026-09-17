@@ -1,0 +1,176 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Sécurité : permissions minimales par défaut. Aucun job n'écrit sur le
+# dépôt ; les jobs lisent uniquement le contenu via actions/checkout.
+permissions:
+  contents: read
+
+# Annule les runs précédents sur la même branche / PR si un nouveau
+# push arrive. Économise les minutes Actions et évite que deux runs
+# concurrents publient des statuts contradictoires.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Installer uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Installer Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Synchroniser les dépendances
+        run: uv sync --group dev --frozen
+
+      - name: Vérifier le lint (ruff check)
+        run: uv run ruff check .
+
+      - name: Vérifier le formatage (ruff format --check)
+        run: uv run ruff format --check .
+
+  type-check:
+    name: Type check (mypy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Installer uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Installer Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Synchroniser les dépendances
+        run: uv sync --group dev --frozen
+
+      - name: Vérifier les types (mypy strict)
+        run: uv run mypy src
+
+  tests-unit:
+    name: Tests unitaires
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [lint, type-check]
+    env:
+      # Seul POSTGRES_PASSWORD n'a pas de default dans Settings.
+      # Valeur factice : les tests unitaires n'établissent jamais
+      # de connexion DB réelle. Cf. Settings dans
+      # src/kuma_data_core/core/config.py (Field(...) sans default).
+      POSTGRES_PASSWORD: factice_unitaire_jamais_utilise
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Installer uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Installer Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Synchroniser les dépendances
+        run: uv sync --group dev --frozen
+
+      - name: Exécuter les tests unitaires
+        run: uv run pytest tests/unit -m unit -v
+
+  tests-integration:
+    name: Tests d'intégration
+    runs-on: ubuntu-latest
+    # 30 min : le rejeu integral inclut le backfill journalier profondeur
+    # (migration 107, 4 147 830 insertions, trigger d'audit par ligne) en plus
+    # de l'horaire pilote live. Mesure locale du seul backfill : 19 min.
+    timeout-minutes: 30
+    needs: [lint, type-check]
+
+    # Service container natif GitHub Actions : un PostgreSQL 16-alpine
+    # démarré avant le job, accessible sur 127.0.0.1:5432 depuis les
+    # steps. Le health-check garantit que le service accepte les
+    # connexions avant que les steps ne s'exécutent (sans cela,
+    # alembic upgrade head échouerait avec une erreur de connexion).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: kuma_admin
+          POSTGRES_PASSWORD: ci_password_uniquement
+          POSTGRES_DB: kuma_civ
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U kuma_admin -d kuma_civ"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    # Variables d'environnement vues par le PROCESSUS Python (alembic,
+    # pytest, FastAPI). Reproduites au niveau du job parce que Settings
+    # les lit via os.environ au runtime - services.postgres.env: ne
+    # configure que le container Postgres lui-même.
+    env:
+      POSTGRES_USER: kuma_admin
+      POSTGRES_PASSWORD: ci_password_uniquement
+      POSTGRES_DB: kuma_civ
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: "5432"
+      KUMA_INITIAL_EDITOR_EMAIL: ci.editeur@kuma-science.test
+      API_ENVIRONNEMENT: dev
+      API_DOCS_ACTIVES: "false"
+      API_CLE_SOLAR_BRIDGE: ci_cle_solar_factice
+      API_CLE_ADMIN: ci_cle_admin_factice
+      LOG_FORMAT: json
+      LOG_NIVEAU: WARNING
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Installer uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Installer Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Synchroniser les dépendances
+        run: uv sync --group dev --frozen
+
+      - name: Appliquer les migrations Alembic
+        # Instance Côte d'Ivoire : baseline schéma squashée + référentiels +
+        # localités. Aucune migration d'ingestion -> `alembic upgrade head`
+        # n'exige aucun accès réseau.
+        run: uv run alembic upgrade head
+
+      - name: Vérifier la cohérence Alembic / modèles SQLAlchemy
+        run: uv run alembic check
+
+      - name: Exécuter les tests d'intégration (hors regression)
+        run: uv run pytest -m "integration and not regression" -v

@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Feuille de route
+    url: https://github.com/siba-IEE/kuma-data-core/blob/main/ROADMAP.md
+    about: La direction du projet et ce qui est actionnable aujourd'hui.
+  - name: Guide de contribution
+    url: https://github.com/siba-IEE/kuma-data-core/blob/main/CONTRIBUTING.md
+    about: Mise en place, conventions, accord de licence de contribution.

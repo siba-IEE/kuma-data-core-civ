@@ -1,0 +1,136 @@
+# Orchestration de production de l'API publique Kuma Data Core (ADR-0003, WP8).
+#
+# Profil serveur : sert une édition publiée en lecture seule + la base de
+# service des clés. Diffère du compose de développement sur des points de
+# sécurité non négociables :
+#
+#   - PostgreSQL et Redis n'exposent AUCUN port sur l'hôte : ils ne sont
+#     joignables que par le réseau interne Docker. Seul Caddy publie 80/443.
+#     (Le pare-feu système, cf. durcir-vps.sh, est la seconde barrière.)
+#   - L'API tourne en profil édition figée, rate limiting actif, derrière
+#     un proxy de confiance.
+#   - TLS terminé par Caddy (Let's Encrypt automatique).
+#
+# Les secrets viennent de .env.prod (jamais versionné). Les identifiants de
+# la base de service (META_USER/META_PASSWORD, rôle kuma_api_service) sont
+# DISTINCTS du couple lecture seule (POSTGRES_USER=kuma_api_ro) : c'est ce
+# qui tient la garantie de moindre privilège (ADR-0003 D2).
+#
+# Usage :
+#   docker compose -f docker/docker-compose.prod.yml --env-file .env.prod up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kuma-postgres-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_SUPERUSER}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD}
+      POSTGRES_DB: postgres
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
+    # AUCUN mapping de port : la base n'est jamais joignable depuis l'hôte
+    # ni l'extérieur. Seuls les services du réseau interne y accèdent.
+    volumes:
+      - kuma_pg_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - kuma_interne
+
+  redis:
+    image: redis:7-alpine
+    container_name: kuma-redis-prod
+    restart: unless-stopped
+    command: ["sh", "-c", "redis-server --requirepass \"$$REDIS_PASSWORD\""]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    # AUCUN mapping de port non plus.
+    volumes:
+      - kuma_redis_prod:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kuma_interne
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: kuma-api-prod
+    restart: unless-stopped
+    environment:
+      # Édition servie en lecture seule (rôle kuma_api_ro).
+      POSTGRES_USER: kuma_api_ro
+      POSTGRES_PASSWORD: ${API_RO_PASSWORD}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      EDITION_DB: ${EDITION_DB}
+      # Base de service (rôle kuma_api_service, DISTINCT - D2).
+      META_DB: kuma_api_meta
+      META_USER: kuma_api_service
+      META_PASSWORD: ${API_SERVICE_PASSWORD}
+      # Redis (compteurs de quota).
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # Posture de sécurité du profil public.
+      API_ENVIRONNEMENT: prod
+      API_DOCS_ACTIVES: "false"
+      LOG_FORMAT: json
+      EDITION_FIGEE: "true"
+      RATE_LIMITING_ACTIF: "true"
+      DERRIERE_PROXY_CONFIANCE: "true"
+      API_CLE_ADMIN: ${API_CLE_ADMIN}
+      KUMA_CALAGE_BASE: ${KUMA_CALAGE_BASE}
+      KUMA_CALAGE_JETON: ${KUMA_CALAGE_JETON}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - kuma_interne
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: kuma-caddy-prod
+    restart: unless-stopped
+    # Caddy est le SEUL service exposé au réseau public.
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      KUMA_DOMAINE: ${KUMA_DOMAINE}
+    depends_on:
+      - api
+    networks:
+      - kuma_interne
+
+volumes:
+  kuma_pg_prod:
+    driver: local
+  kuma_redis_prod:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
+
+networks:
+  # Réseau interne uniquement : aucune exposition hôte. La base, le cache
+  # et l'API ne se parlent que par ce réseau ; le monde extérieur n'atteint
+  # que Caddy.
+  kuma_interne:
+    driver: bridge

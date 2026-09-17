@@ -1,0 +1,24 @@
+# Contexte de build minimal : ni secrets, ni historique, ni artefacts.
+# L'image de production ne contient que le code applicatif et ses dépendances.
+.git
+.github
+.env
+.env.*
+!.env.example
+docker/.env*
+!docker/.env.prod.example
+out/
+outputs/
+data/
+tests/
+docs/
+migrations/
+scripts/
+communication/
+templates/
+**/__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

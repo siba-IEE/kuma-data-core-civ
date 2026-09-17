@@ -1,0 +1,18 @@
+{
+  "title": "Kuma Data Core (Côte d'Ivoire)",
+  "description": "Moteur de données à confiance tracée (niveaux A/B/C), versionnement temporel non destructif et audit applicatif. Base PostgreSQL et API FastAPI. Instance dédiée : ressource solaire en Côte d'Ivoire. Dérivé du moteur Kuma Data Core (instance pilote Guinée).",
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "AGPL-3.0-or-later",
+  "creators": [
+    { "name": "Kalivogui, Siba", "affiliation": "Kuma Science" }
+  ],
+  "keywords": [
+    "solar energy",
+    "Côte d'Ivoire",
+    "Francophone Africa",
+    "open data",
+    "renewable energy",
+    "data infrastructure"
+  ]
+}

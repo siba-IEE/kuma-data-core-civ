@@ -1,0 +1,91 @@
+# Orchestration Docker Compose pour l'environnement de développement local
+# de Kuma Data Core.
+#
+# Services :
+#   - postgres : base de données PostgreSQL 16 (image Alpine)
+#   - redis    : cache Redis 7 (image Alpine)
+#
+# Sécurité :
+#   - Aucun mot de passe en dur. Tout vient du fichier .env (non versionné).
+#   - Les ports sont liés à 127.0.0.1 uniquement, jamais exposés sur le réseau.
+#   - Authentification PostgreSQL en scram-sha-256, Redis avec mot de passe requis.
+#
+# Usage :
+#   docker compose -f docker/docker-compose.yml --env-file .env up -d
+#
+# Voir docs/architecture/02-environnement-local.md pour la documentation détaillée.
+
+services:
+  # -------------------------------------------------------------------------
+  # PostgreSQL 16 - base de données principale de Kuma Data Core.
+  # Les migrations Alembic seront introduites à l'étape 3.
+  # -------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: kuma-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      # Force l'authentification scram-sha-256 (plus moderne que md5 historique).
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
+    ports:
+      # Binding sur 127.0.0.1 uniquement : la base n'est jamais exposée au réseau.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      # Volume nommé pour la persistance entre redémarrages.
+      - kuma_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - kuma_network
+
+  # -------------------------------------------------------------------------
+  # Redis 7 - cache et files d'attente légères.
+  # Le mot de passe est imposé au démarrage via la directive --requirepass.
+  # -------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: kuma-redis
+    restart: unless-stopped
+    # Le double $$ empêche Compose d'interpréter la variable côté hôte.
+    # Le shell sh résout $REDIS_PASSWORD à l'exécution, dans le conteneur :
+    # le mot de passe ne transite plus par la ligne de commande visible
+    # (docker inspect / ps n'affichera pas la valeur en clair).
+    command: ["sh", "-c", "redis-server --requirepass \"$$REDIS_PASSWORD\""]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - kuma_redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kuma_network
+
+# -----------------------------------------------------------------------------
+# Volumes nommés : gérés par Docker, persistent indépendamment des conteneurs.
+# Pour les supprimer (perte de données) : docker compose down -v
+# -----------------------------------------------------------------------------
+volumes:
+  kuma_postgres_data:
+    driver: local
+  kuma_redis_data:
+    driver: local
+
+# -----------------------------------------------------------------------------
+# Réseau bridge dédié : isole les services Kuma des autres conteneurs Docker
+# tournant éventuellement sur la machine.
+# -----------------------------------------------------------------------------
+networks:
+  kuma_network:
+    driver: bridge

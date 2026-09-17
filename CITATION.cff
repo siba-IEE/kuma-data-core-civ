@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "Si vous utilisez ce logiciel, merci de le citer comme ci-dessous."
+title: "Kuma Data Core (Côte d'Ivoire)"
+abstract: >-
+  Moteur de données à confiance tracée (niveaux A/B/C), versionnement
+  temporel non destructif et audit applicatif. Base PostgreSQL et API
+  FastAPI. Instance dédiée : ressource solaire en Côte d'Ivoire. Dérivé
+  du moteur Kuma Data Core (instance pilote Guinée).
+type: software
+authors:
+  - family-names: "Kalivogui"
+    given-names: "Siba"
+    affiliation: "Kuma Science"
+license: AGPL-3.0-or-later
+repository-code: "https://github.com/siba-IEE/kuma-data-core-civ"
+url: "https://kumascience.com"
+version: "0.1.0"
+date-released: "2026-09-17"
+keywords:
+  - solar energy
+  - Côte d'Ivoire
+  - Francophone Africa
+  - open data
+  - renewable energy
+  - data infrastructure

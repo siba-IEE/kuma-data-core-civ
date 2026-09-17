@@ -1,0 +1,13 @@
+Kuma Data Core
+Copyright (C) 2026 Siba Kalivogui / Kuma Science
+
+Ce logiciel est distribué sous licence GNU Affero General Public License
+version 3.0 ou ultérieure (AGPL-3.0-or-later). Voir le fichier LICENSE.
+
+Les contributions au projet sont régies par l'accord de licence de
+contribution (voir CLA.md).
+
+Ce dépôt inclut des jeux de données dérivés de sources ouvertes
+(NASA POWER, Copernicus / CAMS / ERA5-Land, EUMETSAT CM SAF via PVGIS,
+ESMAP / WAPP). Voir la section « Attribution des données amont » du
+README.
