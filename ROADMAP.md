@@ -12,12 +12,13 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
       population RGPH 2021 (INS Côte d'Ivoire), chef-lieu (migration 0004).
 - [x] Densification du pays `civ` : centroïde (Wikidata Q1008) et population
       nationale RGPH 2021 (migration 0005).
+- [x] Arrêter le mapping de la hiérarchie ivoirienne sur les 7 niveaux du
+      schéma (modèle générique A) : district → `region_administrative`,
+      région → `prefecture`, département → `commune`, sous-préfecture →
+      `site`. Voir [ADR-0005](decisions/0005-mapping-hierarchie-administrative-civ.md).
 - [ ] 31 régions (`prefecture`) avec coordonnées, population et sourçage
       (Wikidata, HDX/COD-AB, INS Côte d'Ivoire).
-- [ ] 108 départements (niveau `commune` ou `site` selon le mapping retenu), même
-      exigence de sourçage.
-- [ ] Arrêter le mapping de la hiérarchie ivoirienne (district, région,
-      département, sous-préfecture, commune) sur les 7 niveaux du schéma.
+- [ ] 108 départements (`commune`), même exigence de sourçage.
 
 ## Jalon 2 : donnée solaire brute
 
