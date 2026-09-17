@@ -15,6 +15,12 @@ le projet suit le versionnement sémantique.
 - Densification sourcée du pays `civ` (migration 0005) : centroïde Wikidata
   Q1008 (`P625`) et population nationale RGPH 2021 (29 389 150 hab.), recoupée
   par la somme des 14 districts.
+- 31 régions ivoiriennes au niveau générique `prefecture` (migration 0006,
+  cf. ADR-0005) : rattachées à leur district (Wikidata `P131`), coordonnées
+  `P625`, population RGPH 2021 (somme exacte par district). Réserves tracées
+  en notes : N'Zi/La Mé mono-sourcées, coordonnée Hambol repliée sur son
+  chef-lieu (P625 région erroné), anciens codes ISO 3166-2 région (périmés
+  depuis la révision 2020) jamais gravés comme courants.
 
 ## 0.1.0
 

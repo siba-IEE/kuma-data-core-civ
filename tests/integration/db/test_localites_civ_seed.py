@@ -68,9 +68,96 @@ _COORD_MULTI_POINTS = {
 
 
 def test_nombre_total_localites(db_session: Session) -> None:
-    """16 localités : 1 continent + 1 pays + 14 districts."""
+    """47 localités : 1 continent + 1 pays + 14 districts + 31 régions."""
     total = db_session.execute(text("SELECT count(*) FROM localites")).scalar_one()
-    assert total == 16
+    assert total == 47
+
+
+def test_trente_et_une_regions_prefecture(db_session: Session) -> None:
+    """31 régions au niveau ``prefecture``, chacune enfant d'un district."""
+    lignes = db_session.execute(
+        text(
+            """
+            SELECT r.code, r.pays_iso3, r.fuseau_horaire, p.code AS parent,
+                   p.type_localite AS parent_type
+            FROM localites r
+            JOIN localites p ON p.id = r.parent_id
+            WHERE r.type_localite = 'prefecture'
+            """
+        )
+    ).all()
+    assert len(lignes) == 31
+    for row in lignes:
+        assert row.pays_iso3 == "CIV", row.code
+        assert row.fuseau_horaire == "Africa/Abidjan", row.code
+        assert row.parent in set(_DISTRICTS_ISO), row.code
+        assert row.parent_type == "region_administrative", row.code
+
+
+def test_regions_coordonnees_et_population(db_session: Session) -> None:
+    """Chaque région a des coordonnées dans l'enveloppe CIV et une pop RGPH 2021."""
+    lignes = db_session.execute(
+        text(
+            "SELECT code, latitude, longitude, population_estimee, annee_population "
+            "FROM localites WHERE type_localite = 'prefecture'"
+        )
+    ).all()
+    for row in lignes:
+        assert _CIV_LAT_MIN <= float(row.latitude) <= _CIV_LAT_MAX, row.code
+        assert _CIV_LON_MIN <= float(row.longitude) <= _CIV_LON_MAX, row.code
+        assert row.population_estimee > 0, row.code
+        assert row.annee_population == 2021, row.code
+
+
+def test_somme_regions_egale_total_district(db_session: Session) -> None:
+    """Pour chaque district, la somme des populations de ses régions = son total."""
+    lignes = db_session.execute(
+        text(
+            """
+            SELECT p.code AS district, p.population_estimee AS total_district,
+                   sum(r.population_estimee) AS somme_regions
+            FROM localites r
+            JOIN localites p ON p.id = r.parent_id
+            WHERE r.type_localite = 'prefecture'
+            GROUP BY p.code, p.population_estimee
+            """
+        )
+    ).all()
+    # 12 districts non autonomes ont des régions (Abidjan/Yamoussoukro : 0).
+    assert len(lignes) == 12
+    for row in lignes:
+        assert int(row.somme_regions) == row.total_district, row.district
+
+
+def test_regions_reserves_documentees(db_session: Session) -> None:
+    """Les réserves de sourçage sont tracées en notes (Hambol, ISO périmé, mono-source)."""
+    hambol = db_session.execute(
+        text("SELECT latitude, longitude, notes FROM localites WHERE code = 'civ_hambol'")
+    ).one()
+    assert (float(hambol.latitude), float(hambol.longitude)) == pytest.approx((8.13333333, -5.1))
+    assert "erroné" in hambol.notes
+    # 5 régions portent l'ancien code ISO périmé, jamais comme code courant.
+    nb_iso = db_session.execute(
+        text(
+            "SELECT count(*) FROM localites "
+            "WHERE type_localite = 'prefecture' AND notes LIKE '%périmé%'"
+        )
+    ).scalar_one()
+    assert nb_iso == 5
+    # code_administratif_national jamais renseigné pour les régions.
+    nb_code_nat = db_session.execute(
+        text(
+            "SELECT count(*) FROM localites "
+            "WHERE type_localite = 'prefecture' AND code_administratif_national IS NOT NULL"
+        )
+    ).scalar_one()
+    assert nb_code_nat == 0
+    # N'Zi et La Mé signalées mono-sourcées.
+    for code in ("civ_n_zi", "civ_la_me"):
+        notes = db_session.execute(
+            text("SELECT notes FROM localites WHERE code = :c"), {"c": code}
+        ).scalar_one()
+        assert "mono-sourcée" in notes, code
 
 
 def test_racine_et_pays(db_session: Session) -> None:
