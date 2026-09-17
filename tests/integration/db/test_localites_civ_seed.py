@@ -94,8 +94,8 @@ def test_cent_onze_departements_commune(db_session: Session) -> None:
     assert par_type == {"prefecture": 108, "region_administrative": 3}
 
 
-def test_departements_coordonnees_et_population_differee(db_session: Session) -> None:
-    """Coordonnées dans l'enveloppe CIV ; population départementale différée (NULL)."""
+def test_departements_coordonnees_et_population_rgph(db_session: Session) -> None:
+    """Coordonnées dans l'enveloppe CIV ; population RGPH 2021 renseignée pour les 111."""
     lignes = db_session.execute(
         text(
             "SELECT code, latitude, longitude, population_estimee, annee_population "
@@ -105,8 +105,52 @@ def test_departements_coordonnees_et_population_differee(db_session: Session) ->
     for row in lignes:
         assert _CIV_LAT_MIN <= float(row.latitude) <= _CIV_LAT_MAX, row.code
         assert _CIV_LON_MIN <= float(row.longitude) <= _CIV_LON_MAX, row.code
-        assert row.population_estimee is None, row.code
-        assert row.annee_population is None, row.code
+        assert row.population_estimee is not None and row.population_estimee > 0, row.code
+        assert row.annee_population == 2021, row.code
+
+
+def test_somme_departements_egale_total_region(db_session: Session) -> None:
+    """La somme des populations départementales reproduit le total de chaque parent (±1)."""
+    lignes = db_session.execute(
+        text(
+            """
+            SELECT p.code AS parent, p.population_estimee AS total_parent,
+                   sum(d.population_estimee) AS somme_dep
+            FROM localites d
+            JOIN localites p ON p.id = d.parent_id
+            WHERE d.type_localite = 'commune'
+            GROUP BY p.code, p.population_estimee
+            """
+        )
+    ).all()
+    # 31 régions + 2 districts autonomes portent des départements.
+    assert len(lignes) == 33
+    for row in lignes:
+        assert abs(int(row.somme_dep) - row.total_parent) <= 1, row.parent
+    national = db_session.execute(
+        text("SELECT sum(population_estimee) FROM localites WHERE type_localite = 'commune'")
+    ).scalar_one()
+    assert int(national) == 29_389_150
+
+
+def test_departements_noms_corriges(db_session: Session) -> None:
+    """Corrections de la migration 0007 : Oumé (ex d'Oumé) et Niakaramandougou."""
+    codes = {
+        r.code
+        for r in db_session.execute(
+            text("SELECT code FROM localites WHERE type_localite = 'commune'")
+        ).all()
+    }
+    assert "civ_dep_oume" in codes and "civ_dep_d_oume" not in codes
+    assert "civ_dep_niakaramandougou" in codes and "civ_dep_niakaramadougou" not in codes
+    for code, attendu in [
+        ("civ_dep_oume", "Oumé"),
+        ("civ_dep_niakaramandougou", "Niakaramandougou"),
+    ]:
+        nom = db_session.execute(
+            text("SELECT nom FROM localites WHERE code = :c"), {"c": code}
+        ).scalar_one()
+        assert nom == attendu, code
 
 
 def test_departements_pas_de_code_iso(db_session: Session) -> None:

@@ -89,10 +89,17 @@ ISO 3166-2 (standard limité aux districts). Sont écartés les **6 anciens
 départements dissous** (Est, Nord, Ouest, Sud, Centre, Centre-Ouest, sans
 ``P131``).
 
-**Population différée** : la couverture RGPH 2021 par département n'est pas
-sourçable en masse hors accès INS (Wikidata ne couvre que 23/111, millésimes
-mixtes) ; ``population_estimee`` / ``annee_population`` restent ``NULL``,
-densification ultérieure — aucune valeur inventée.
+**Population RGPH 2021** (INS Côte d'Ivoire) : chaque département porte sa
+population du recensement 2021, sourcée via le portail open data officiel
+``data.gouv.ci`` et le miroir homogène ``citypopulation.de`` (``ins.ci`` étant
+bloqué). Contrôle d'intégrité : la somme des départements reproduit le total
+de chaque région déjà gravée (écart ≤ 1 hab) et le total national vaut
+**29 389 150** hab. (chiffre officiel exact).
+
+Deux libellés issus de la migration 0007 sont **corrigés** ici : ``Oumé``
+(ex ``d'Oumé`` — le ``d'`` élidé n'avait pas été retiré ; code désormais
+``civ_dep_oume``) et ``Niakaramandougou`` (orthographe officielle, ex
+``Niakaramadougou`` fidèle à Wikidata ; code ``civ_dep_niakaramandougou``).
 """
 
 from __future__ import annotations
@@ -641,6 +648,7 @@ def _departement(
     chef_lieu: str,
     coord_mode: str,
     chef_infere: bool,
+    population_2021: int,
 ) -> dict[str, Any]:
     """Construit une entrée ``commune`` (département ivoirien) rattachée à son parent.
 
@@ -649,8 +657,8 @@ def _departement(
     districts autonomes, le district lui-même (``region_administrative``) —
     les deux sont autorisés par la matrice hiérarchique. Coordonnées : point
     Wikidata ``P625`` (règle de rang ADR-0006), avec repli chef-lieu documenté.
-    Population **différée** (RGPH 2021 non sourçable en masse hors accès INS) :
-    ``population_estimee`` / ``annee_population`` restent ``NULL``.
+    Population : **RGPH 2021** (INS Côte d'Ivoire), sourcée via data.gouv.ci /
+    citypopulation.de ; la somme par région reproduit le total régional (±1).
     """
     coord_txt = {
         "u": f"point représentatif Wikidata {wikidata_qid} (P625)",
@@ -666,9 +674,9 @@ def _departement(
     )
     notes = (
         f"Département de Côte d'Ivoire (niveau générique « commune » ; parent : "
-        f"{parent_nom}). {chef_txt}. Coordonnées : {coord_txt}. Population RGPH 2021 "
-        f"à densifier en passe ultérieure (accès INS requis). Aucun code ISO 3166-2 "
-        f"(standard limité aux districts)."
+        f"{parent_nom}). {chef_txt}. Coordonnées : {coord_txt}. Population "
+        f"{population_2021} hab. — RGPH 2021 (INS Côte d'Ivoire). Aucun code "
+        f"ISO 3166-2 (standard limité aux districts)."
     )
     return {
         "code": code,
@@ -679,8 +687,8 @@ def _departement(
         "latitude": float(latitude),
         "longitude": float(longitude),
         "altitude_metres": None,
-        "population_estimee": None,
-        "annee_population": None,
+        "population_estimee": population_2021,
+        "annee_population": 2021,
         "fuseau_horaire": "Africa/Abidjan",
         "notes": notes,
     }
@@ -689,10 +697,15 @@ def _departement(
 # 111 départements actuels : 108 rattachés à une région (``prefecture``) + 3 aux
 # districts autonomes (Abidjan, Yamoussoukro) faute de régions. Rattachement
 # Wikidata P131 (Kani -> Worodougou sourcé, lacune P131 amont). Coordonnées P625
-# (règle ADR-0006 ; Attiégouakro : repli chef-lieu, sans P625). Population différée.
+# (règle ADR-0006 ; Attiégouakro : repli chef-lieu, sans P625). Population RGPH
+# 2021 (INS, via data.gouv.ci / citypopulation.de ; somme par région = total
+# régional à ±1 hab, national = 29 389 150 exact).
+# Corrections de noms vs migration 0007 : « Oumé » (ex « d'Oumé », code
+# civ_dep_oume) et « Niakaramandougou » (orthographe officielle, ex
+# « Niakaramadougou », code civ_dep_niakaramandougou).
 # Tuple : (code, nom, parent_code, parent_nom, QID, lat, lon, chef-lieu,
-#          coord_mode {u:unique, p:preferred, d:1er normal, r:repli chef-lieu},
-#          chef_lieu_inféré)
+#          coord_mode {u:unique, p:preferred, d:1er normal, r:repli}, chef_infere,
+#          population_2021)
 _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
     (
         "civ_dep_fresco",
@@ -705,6 +718,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Fresco",
         "u",
         False,
+        107752,
     ),
     (
         "civ_dep_sassandra",
@@ -717,6 +731,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Sassandra",
         "u",
         False,
+        353228,
     ),
     (
         "civ_dep_buyo",
@@ -729,6 +744,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Buyo",
         "u",
         False,
+        176568,
     ),
     (
         "civ_dep_gueyo",
@@ -741,6 +757,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Guéyo",
         "u",
         False,
+        102213,
     ),
     (
         "civ_dep_meagui",
@@ -753,6 +770,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Méagui",
         "u",
         False,
+        299251,
     ),
     (
         "civ_dep_soubre",
@@ -765,6 +783,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Soubré",
         "d",
         False,
+        587441,
     ),
     (
         "civ_dep_san_pedro",
@@ -777,6 +796,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "San-Pédro",
         "u",
         False,
+        790242,
     ),
     (
         "civ_dep_tabou",
@@ -789,6 +809,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Tabou",
         "u",
         False,
+        270482,
     ),
     (
         "civ_dep_abengourou",
@@ -801,6 +822,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Abengourou",
         "d",
         False,
+        430539,
     ),
     (
         "civ_dep_agnibilekrou",
@@ -813,6 +835,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Agnibilékrou",
         "u",
         False,
+        216264,
     ),
     (
         "civ_dep_bettie",
@@ -825,6 +848,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Bettié",
         "u",
         False,
+        69640,
     ),
     (
         "civ_dep_aboisso",
@@ -837,6 +861,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Aboisso",
         "p",
         False,
+        361842,
     ),
     (
         "civ_dep_adiake",
@@ -849,6 +874,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Adiaké",
         "d",
         False,
+        88006,
     ),
     (
         "civ_dep_grand_bassam",
@@ -861,6 +887,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Grand-Bassam",
         "d",
         False,
+        267103,
     ),
     (
         "civ_dep_tiapoum",
@@ -873,6 +900,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Tiapoum",
         "u",
         False,
+        67941,
     ),
     (
         "civ_dep_kaniasso",
@@ -885,6 +913,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Kaniasso",
         "u",
         False,
+        84572,
     ),
     (
         "civ_dep_minignan",
@@ -897,6 +926,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Minignan",
         "u",
         False,
+        61637,
     ),
     (
         "civ_dep_gbeleban",
@@ -909,6 +939,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Gbéléban",
         "u",
         False,
+        29532,
     ),
     (
         "civ_dep_madinani",
@@ -921,6 +952,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Madinani",
         "u",
         False,
+        50248,
     ),
     (
         "civ_dep_odienne",
@@ -933,6 +965,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Odienné",
         "u",
         False,
+        156730,
     ),
     (
         "civ_dep_samatiguila",
@@ -945,6 +978,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Samatiguila",
         "u",
         False,
+        19710,
     ),
     (
         "civ_dep_seguelon",
@@ -957,10 +991,11 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Séguélon",
         "u",
         False,
+        33585,
     ),
     (
-        "civ_dep_d_oume",
-        "d’Oumé",
+        "civ_dep_oume",
+        "Oumé",
         "civ_goh",
         "Gôh",
         "Q7110509",
@@ -969,6 +1004,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Oumé",
         "u",
         False,
+        260786,
     ),
     (
         "civ_dep_gagnoa",
@@ -981,6 +1017,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Gagnoa",
         "d",
         False,
+        724496,
     ),
     (
         "civ_dep_divo",
@@ -993,6 +1030,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Divo",
         "u",
         False,
+        571688,
     ),
     (
         "civ_dep_guitry",
@@ -1005,6 +1043,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Guitry",
         "u",
         False,
+        197236,
     ),
     (
         "civ_dep_lakota",
@@ -1017,6 +1056,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Lakota",
         "u",
         False,
+        334235,
     ),
     (
         "civ_dep_didievi",
@@ -1029,6 +1069,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Didiévi",
         "u",
         False,
+        93629,
     ),
     (
         "civ_dep_djekanou",
@@ -1041,6 +1082,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Djékanou",
         "u",
         False,
+        37281,
     ),
     (
         "civ_dep_tiebissou",
@@ -1053,6 +1095,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Tiébissou",
         "u",
         False,
+        116321,
     ),
     (
         "civ_dep_toumodi",
@@ -1065,6 +1108,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Toumodi",
         "u",
         False,
+        168363,
     ),
     (
         "civ_dep_daoukro",
@@ -1077,6 +1121,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Daoukro",
         "d",
         False,
+        148095,
     ),
     (
         "civ_dep_m_bahiakro",
@@ -1089,6 +1134,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "M'bahiakro",
         "d",
         False,
+        78369,
     ),
     (
         "civ_dep_ouelle",
@@ -1101,6 +1147,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Ouellé",
         "u",
         False,
+        56501,
     ),
     (
         "civ_dep_prikro",
@@ -1113,6 +1160,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Prikro",
         "u",
         False,
+        95595,
     ),
     (
         "civ_dep_arrah",
@@ -1125,6 +1173,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Arrah",
         "u",
         False,
+        103846,
     ),
     (
         "civ_dep_bongouanou",
@@ -1137,6 +1186,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Bongouanou",
         "d",
         False,
+        193158,
     ),
     (
         "civ_dep_m_batto",
@@ -1149,6 +1199,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "M’batto",
         "u",
         False,
+        142750,
     ),
     (
         "civ_dep_bocanda",
@@ -1161,6 +1212,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Bocanda",
         "d",
         False,
+        121469,
     ),
     (
         "civ_dep_dimbokro",
@@ -1173,6 +1225,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Dimbokro",
         "u",
         False,
+        102192,
     ),
     (
         "civ_dep_kouassi_kouassikro",
@@ -1185,6 +1238,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Kouassi Kouassikro",
         "u",
         False,
+        30962,
     ),
     (
         "civ_dep_agboville",
@@ -1197,6 +1251,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Agboville",
         "u",
         False,
+        384340,
     ),
     (
         "civ_dep_sikensi",
@@ -1209,6 +1264,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Sikensi",
         "u",
         False,
+        125897,
     ),
     (
         "civ_dep_taabo",
@@ -1221,6 +1277,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Taabo",
         "u",
         False,
+        76761,
     ),
     (
         "civ_dep_tiassale",
@@ -1233,6 +1290,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Tiassalé",
         "u",
         False,
+        278954,
     ),
     (
         "civ_dep_dabou",
@@ -1245,6 +1303,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Dabou",
         "u",
         False,
+        213582,
     ),
     (
         "civ_dep_grand_lahou",
@@ -1257,6 +1316,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Grand-Lahou",
         "u",
         False,
+        155832,
     ),
     (
         "civ_dep_jacqueville",
@@ -1269,6 +1329,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Jacqueville",
         "u",
         False,
+        80593,
     ),
     (
         "civ_dep_adzope",
@@ -1281,6 +1342,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Adzopé",
         "p",
         False,
+        283727,
     ),
     (
         "civ_dep_akoupe",
@@ -1293,6 +1355,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Akoupé",
         "u",
         False,
+        156698,
     ),
     (
         "civ_dep_alepe",
@@ -1305,6 +1368,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Alépé",
         "u",
         False,
+        180253,
     ),
     (
         "civ_dep_yakasse_attobrou",
@@ -1317,6 +1381,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Yakassé-Attobrou",
         "u",
         False,
+        105986,
     ),
     (
         "civ_dep_blolequin",
@@ -1329,6 +1394,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Bloléquin",
         "u",
         False,
+        237944,
     ),
     (
         "civ_dep_guiglo",
@@ -1341,6 +1407,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Guiglo",
         "u",
         False,
+        259381,
     ),
     (
         "civ_dep_tai",
@@ -1353,6 +1420,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Taï",
         "u",
         False,
+        117387,
     ),
     (
         "civ_dep_toulepleu",
@@ -1365,6 +1433,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Toulepleu",
         "u",
         False,
+        93529,
     ),
     (
         "civ_dep_bangolo",
@@ -1377,6 +1446,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Bangolo",
         "u",
         False,
+        270629,
     ),
     (
         "civ_dep_duekoue",
@@ -1389,6 +1459,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Duékoué",
         "u",
         False,
+        420911,
     ),
     (
         "civ_dep_facobly",
@@ -1401,6 +1472,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Facobly",
         "u",
         False,
+        94610,
     ),
     (
         "civ_dep_kouibly",
@@ -1413,6 +1485,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Kouibly",
         "u",
         False,
+        144723,
     ),
     (
         "civ_dep_biankouma",
@@ -1425,6 +1498,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Biankouma",
         "u",
         False,
+        238714,
     ),
     (
         "civ_dep_danane",
@@ -1437,8 +1511,21 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Danané",
         "u",
         False,
+        364012,
     ),
-    ("civ_dep_man", "Man", "civ_tonkpi", "Tonkpi", "Q7193694", 7.4, -7.55, "Man", "u", False),
+    (
+        "civ_dep_man",
+        "Man",
+        "civ_tonkpi",
+        "Tonkpi",
+        "Q7193694",
+        7.4,
+        -7.55,
+        "Man",
+        "u",
+        False,
+        461135,
+    ),
     (
         "civ_dep_sipilou",
         "Sipilou",
@@ -1450,6 +1537,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Sipilou",
         "u",
         True,
+        73109,
     ),
     (
         "civ_dep_zouan_hounien",
@@ -1462,6 +1550,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Zouan-Hounien",
         "u",
         False,
+        250938,
     ),
     (
         "civ_dep_daloa",
@@ -1474,6 +1563,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Daloa",
         "u",
         False,
+        705378,
     ),
     (
         "civ_dep_issia",
@@ -1486,6 +1576,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Issia",
         "u",
         False,
+        410628,
     ),
     (
         "civ_dep_vavoua",
@@ -1498,6 +1589,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Vavoua",
         "u",
         False,
+        477154,
     ),
     (
         "civ_dep_zoukougbeu",
@@ -1510,6 +1602,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Zoukougbeu",
         "u",
         False,
+        146537,
     ),
     (
         "civ_dep_bonon",
@@ -1522,6 +1615,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Bonon",
         "u",
         False,
+        167397,
     ),
     (
         "civ_dep_bouafle",
@@ -1534,6 +1628,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Bouaflé",
         "u",
         False,
+        300305,
     ),
     (
         "civ_dep_gohitafla",
@@ -1546,6 +1641,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Gohitafla",
         "u",
         False,
+        83370,
     ),
     (
         "civ_dep_sinfra",
@@ -1558,6 +1654,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Sinfra",
         "u",
         False,
+        245226,
     ),
     (
         "civ_dep_zuenoula",
@@ -1570,6 +1667,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Zuénoula",
         "u",
         False,
+        184882,
     ),
     (
         "civ_dep_boundiali",
@@ -1582,6 +1680,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Boundiali",
         "u",
         False,
+        198541,
     ),
     (
         "civ_dep_kouto",
@@ -1594,6 +1693,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Kouto",
         "u",
         False,
+        175587,
     ),
     (
         "civ_dep_tengrela",
@@ -1606,6 +1706,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Tengréla",
         "u",
         False,
+        141761,
     ),
     (
         "civ_dep_dikodougou",
@@ -1618,6 +1719,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Dikodougou",
         "u",
         False,
+        102115,
     ),
     (
         "civ_dep_korhogo",
@@ -1630,6 +1732,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Korhogo",
         "u",
         False,
+        748393,
     ),
     (
         "civ_dep_m_bengue",
@@ -1642,6 +1745,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Mbengué",
         "u",
         False,
+        114971,
     ),
     (
         "civ_dep_sinematiali",
@@ -1654,6 +1758,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Sinématiali",
         "u",
         False,
+        74981,
     ),
     (
         "civ_dep_ferkessedougou",
@@ -1666,6 +1771,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Ferkessédougou",
         "u",
         False,
+        190141,
     ),
     (
         "civ_dep_kong",
@@ -1678,6 +1784,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Kong",
         "u",
         False,
+        118304,
     ),
     (
         "civ_dep_ouangolodougou",
@@ -1690,6 +1797,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Ouangolodougou",
         "u",
         False,
+        294639,
     ),
     (
         "civ_dep_beoumi",
@@ -1702,6 +1810,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Béoumi",
         "u",
         False,
+        195015,
     ),
     (
         "civ_dep_botro",
@@ -1714,6 +1823,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Botro",
         "u",
         False,
+        117924,
     ),
     (
         "civ_dep_bouake",
@@ -1726,6 +1836,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Bouaké",
         "d",
         False,
+        931851,
     ),
     (
         "civ_dep_sakassou",
@@ -1738,6 +1849,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Sakassou",
         "d",
         False,
+        108110,
     ),
     (
         "civ_dep_dabakala",
@@ -1750,6 +1862,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Dabakala",
         "u",
         False,
+        254430,
     ),
     (
         "civ_dep_katiola",
@@ -1762,18 +1875,20 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Katiola",
         "u",
         False,
+        162472,
     ),
     (
-        "civ_dep_niakaramadougou",
-        "Niakaramadougou",
+        "civ_dep_niakaramandougou",
+        "Niakaramandougou",
         "civ_hambol",
         "Hambol",
         "Q22080910",
         8.66666667,
         -5.28333333,
-        "Niakaramadougou",
+        "Niakaramandougou",
         "u",
         False,
+        195127,
     ),
     (
         "civ_dep_koro",
@@ -1786,6 +1901,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Koro",
         "u",
         False,
+        76345,
     ),
     (
         "civ_dep_ouaninou",
@@ -1798,6 +1914,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Ouaninou",
         "u",
         False,
+        65981,
     ),
     (
         "civ_dep_touba",
@@ -1810,6 +1927,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Touba",
         "u",
         False,
+        120524,
     ),
     (
         "civ_dep_dianra",
@@ -1822,6 +1940,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Dianra",
         "u",
         False,
+        119146,
     ),
     (
         "civ_dep_kounahiri",
@@ -1834,6 +1953,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Kounahiri",
         "u",
         False,
+        101111,
     ),
     (
         "civ_dep_mankono",
@@ -1846,6 +1966,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Mankono",
         "d",
         False,
+        271894,
     ),
     (
         "civ_dep_kani",
@@ -1858,6 +1979,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Kani",
         "u",
         False,
+        131428,
     ),
     (
         "civ_dep_seguela",
@@ -1870,6 +1992,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Séguéla",
         "u",
         False,
+        298384,
     ),
     (
         "civ_dep_bouna",
@@ -1882,6 +2005,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Bouna",
         "u",
         False,
+        178081,
     ),
     (
         "civ_dep_doropo",
@@ -1894,6 +2018,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Doropo",
         "u",
         False,
+        93386,
     ),
     (
         "civ_dep_nassian",
@@ -1906,6 +2031,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Nassian",
         "u",
         False,
+        71724,
     ),
     (
         "civ_dep_tehini",
@@ -1918,6 +2044,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Téhini",
         "u",
         False,
+        83846,
     ),
     (
         "civ_dep_bondoukou",
@@ -1930,6 +2057,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Bondoukou",
         "u",
         False,
+        453841,
     ),
     (
         "civ_dep_koun_fao",
@@ -1942,6 +2070,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Koun-Fao",
         "u",
         False,
+        167881,
     ),
     (
         "civ_dep_sandegue",
@@ -1954,6 +2083,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Sandégué",
         "u",
         False,
+        69742,
     ),
     (
         "civ_dep_tanda",
@@ -1966,6 +2096,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Tanda",
         "u",
         False,
+        113523,
     ),
     (
         "civ_dep_transua",
@@ -1978,6 +2109,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Transua",
         "u",
         False,
+        112842,
     ),
     (
         "civ_dep_abidjan",
@@ -1990,6 +2122,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Abidjan",
         "u",
         False,
+        6321017,
     ),
     (
         "civ_dep_attiegouakro",
@@ -2002,6 +2135,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Attiégouakro",
         "r",
         False,
+        49513,
     ),
     (
         "civ_dep_yamoussoukro",
@@ -2014,6 +2148,7 @@ _DEPARTEMENTS_DATA: tuple[tuple[Any, ...], ...] = (
         "Yamoussoukro",
         "u",
         False,
+        372559,
     ),
 )
 
