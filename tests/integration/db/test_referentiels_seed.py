@@ -25,7 +25,9 @@ def test_unites_et_grandeurs_peuplees(db_session: Session) -> None:
     unites = db_session.execute(text("SELECT count(*) FROM unites")).scalar_one()
     grandeurs = db_session.execute(text("SELECT count(*) FROM grandeurs_referentiel")).scalar_one()
     assert unites == 160
-    assert grandeurs == 34
+    # 34 grandeurs seedees en 0002 + 1 grandeur derivee ajoutee en 0011
+    # (ecart_relatif_ghi_sarah3_nasa, premiere grandeur calculee CIV).
+    assert grandeurs == 35
 
 
 def test_source_guineenne_retiree(db_session: Session) -> None:

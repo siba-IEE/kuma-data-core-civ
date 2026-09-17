@@ -7,6 +7,18 @@ le projet suit le versionnement sémantique.
 
 ### Ajouté
 
+- Jalon 3 (grandeurs) — **première grandeur dérivée** de l'instance CIV :
+  l'**écart inter-source** relatif du GHI, `ecart_relatif_ghi_sarah3_nasa`
+  (migration 0011, ADR-0009). Formule `(sarah3 − nasa) / nasa × 100` (NASA
+  POWER en référence au dénominateur), matérialisée dans `grandeurs_metier`
+  (`strategie_calcul='stockee'`) par (localité, mois) sur la **fenêtre commune
+  2005-2020** — 576 lignes (192 mois × 3 points), confiance dérivée **B**.
+  Calculée **en base par jointure SQL** depuis les mesures brutes déjà gravées
+  (0008 + 0010), sans seed ni réseau : la cohérence avec les séries sources est
+  structurelle. Trois choix tranchés dans l'ADR : `stockee` (déterministe,
+  hors périmètre — corrige le drift hérité de `ecart_relatif_dni_cams`),
+  fenêtre commune stricte (intersection garantie par la jointure), confiance
+  `min` des deux entrées B (jamais A).
 - Jalon 2 (donnée solaire brute) — irradiation mensuelle **NASA POWER** aux
   départements d'Abidjan, Yamoussoukro et Korhogo, confiance B (satellite),
   unité kWh/m²/jour héritée de la grandeur (contrat de série ADR-0007) :
