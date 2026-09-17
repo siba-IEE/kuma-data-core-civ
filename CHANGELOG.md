@@ -20,8 +20,11 @@ le projet suit le versionnement sémantique.
   Yamoussoukro) via `commune → region_administrative`. Rattachement Wikidata
   `P131` (Kani → Worodougou, lacune P131 comblée par source), coordonnées
   `P625` (Attiégouakro : repli chef-lieu, sans P625). 6 anciens départements
-  dissous écartés. Population départementale différée (non sourçable en masse
-  hors INS). Aucun code ISO (standard limité aux districts).
+  dissous écartés. Aucun code ISO (standard limité aux districts).
+  **Population RGPH 2021** (INS, via data.gouv.ci / citypopulation.de) portée
+  par chaque département : la somme par région reproduit le total régional
+  (écart ≤ 1) et le total national vaut 29 389 150 (exact). Deux libellés
+  corrigés : `Oumé` (ex `d'Oumé`) et `Niakaramandougou` (orthographe officielle).
 - 31 régions ivoiriennes au niveau générique `prefecture` (migration 0006,
   cf. ADR-0005) : rattachées à leur district (Wikidata `P131`), coordonnées
   `P625`, population RGPH 2021 (somme exacte par district). Réserves tracées

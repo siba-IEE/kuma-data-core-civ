@@ -12,9 +12,13 @@ districts autonomes d'Abidjan et de Yamoussoukro (``commune`` ->
 migration 0006 et les districts posés par la migration 0003.
 
 Coordonnées Wikidata ``P625`` (règle de rang ADR-0006 ; Attiégouakro, sans
-``P625`` propre, porte la coordonnée de son chef-lieu). **Population différée**
-(non sourçable en masse hors INS) : ``population_estimee`` /
-``annee_population`` restent ``NULL``.
+``P625`` propre, porte la coordonnée de son chef-lieu). **Population RGPH 2021**
+(INS Côte d'Ivoire, via ``data.gouv.ci`` / ``citypopulation.de``) : chaque
+département porte sa population de recensement 2021 ; la somme par région
+reproduit le total régional déjà gravé (écart ≤ 1 hab) et le total national
+vaut 29 389 150 (chiffre officiel exact). Les valeurs proviennent de
+``LOCALITES_SEED`` (source unique) ; ``op.bulk_insert`` les insère telles
+quelles.
 
 Pattern identique aux seeds de localités : ``op.bulk_insert`` unique,
 résolution Python ``parent_code -> parent_id`` via bulk fetch, garde-fou
