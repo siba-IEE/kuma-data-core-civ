@@ -15,6 +15,13 @@ le projet suit le versionnement sémantique.
 - Densification sourcée du pays `civ` (migration 0005) : centroïde Wikidata
   Q1008 (`P625`) et population nationale RGPH 2021 (29 389 150 hab.), recoupée
   par la somme des 14 districts.
+- 111 départements ivoiriens au niveau générique `commune` (migration 0007) :
+  108 rattachés à une région, 3 aux districts autonomes (Abidjan,
+  Yamoussoukro) via `commune → region_administrative`. Rattachement Wikidata
+  `P131` (Kani → Worodougou, lacune P131 comblée par source), coordonnées
+  `P625` (Attiégouakro : repli chef-lieu, sans P625). 6 anciens départements
+  dissous écartés. Population départementale différée (non sourçable en masse
+  hors INS). Aucun code ISO (standard limité aux districts).
 - 31 régions ivoiriennes au niveau générique `prefecture` (migration 0006,
   cf. ADR-0005) : rattachées à leur district (Wikidata `P131`), coordonnées
   `P625`, population RGPH 2021 (somme exacte par district). Réserves tracées

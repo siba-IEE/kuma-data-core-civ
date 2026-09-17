@@ -68,9 +68,82 @@ _COORD_MULTI_POINTS = {
 
 
 def test_nombre_total_localites(db_session: Session) -> None:
-    """47 localités : 1 continent + 1 pays + 14 districts + 31 régions."""
+    """158 localités : 1 continent + 1 pays + 14 districts + 31 régions + 111 départements."""
     total = db_session.execute(text("SELECT count(*) FROM localites")).scalar_one()
-    assert total == 47
+    assert total == 158
+
+
+def test_cent_onze_departements_commune(db_session: Session) -> None:
+    """111 départements au niveau ``commune`` ; parent région (108) ou district (3)."""
+    lignes = db_session.execute(
+        text(
+            """
+            SELECT r.code, r.pays_iso3, p.type_localite AS parent_type
+            FROM localites r
+            JOIN localites p ON p.id = r.parent_id
+            WHERE r.type_localite = 'commune'
+            """
+        )
+    ).all()
+    assert len(lignes) == 111
+    par_type = {}
+    for row in lignes:
+        assert row.pays_iso3 == "CIV", row.code
+        assert row.code.startswith("civ_dep_"), row.code
+        par_type[row.parent_type] = par_type.get(row.parent_type, 0) + 1
+    assert par_type == {"prefecture": 108, "region_administrative": 3}
+
+
+def test_departements_coordonnees_et_population_differee(db_session: Session) -> None:
+    """Coordonnées dans l'enveloppe CIV ; population départementale différée (NULL)."""
+    lignes = db_session.execute(
+        text(
+            "SELECT code, latitude, longitude, population_estimee, annee_population "
+            "FROM localites WHERE type_localite = 'commune'"
+        )
+    ).all()
+    for row in lignes:
+        assert _CIV_LAT_MIN <= float(row.latitude) <= _CIV_LAT_MAX, row.code
+        assert _CIV_LON_MIN <= float(row.longitude) <= _CIV_LON_MAX, row.code
+        assert row.population_estimee is None, row.code
+        assert row.annee_population is None, row.code
+
+
+def test_departements_pas_de_code_iso(db_session: Session) -> None:
+    """Aucun département ne porte de code ISO courant (standard limité aux districts)."""
+    n = db_session.execute(
+        text(
+            "SELECT count(*) FROM localites "
+            "WHERE type_localite = 'commune' AND code_administratif_national IS NOT NULL"
+        )
+    ).scalar_one()
+    assert n == 0
+
+
+def test_departements_cas_particuliers(db_session: Session) -> None:
+    """Kani rattaché à Worodougou ; Attiégouakro sous le district autonome de Yamoussoukro."""
+    kani = db_session.execute(
+        text(
+            """
+            SELECT p.code AS parent FROM localites d
+            JOIN localites p ON p.id = d.parent_id
+            WHERE d.code = 'civ_dep_kani'
+            """
+        )
+    ).one()
+    assert kani.parent == "civ_worodougou"
+    att = db_session.execute(
+        text(
+            """
+            SELECT p.code AS parent, d.latitude, d.longitude, d.notes
+            FROM localites d JOIN localites p ON p.id = d.parent_id
+            WHERE d.code = 'civ_dep_attiegouakro'
+            """
+        )
+    ).one()
+    assert att.parent == "civ_yamoussoukro"
+    assert (float(att.latitude), float(att.longitude)) == pytest.approx((6.76666667, -5.11666667))
+    assert "repli sur le chef-lieu" in att.notes
 
 
 def test_trente_et_une_regions_prefecture(db_session: Session) -> None:
