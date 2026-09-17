@@ -19,7 +19,10 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
 - [x] 31 régions (`prefecture`) avec coordonnées (Wikidata `P625`),
       population RGPH 2021 (INS) et rattachement au district (Wikidata `P131`),
       migration 0006.
-- [ ] 108 départements (`commune`), même exigence de sourçage.
+- [x] 111 départements (`commune`) : 108 sous région + 3 sous districts
+      autonomes, rattachement Wikidata `P131`, coordonnées `P625` (migration
+      0007). Population départementale (RGPH 2021) différée — densification
+      ultérieure (accès INS requis).
 
 ## Jalon 2 : donnée solaire brute
 
