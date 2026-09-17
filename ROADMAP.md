@@ -20,9 +20,9 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
       population RGPH 2021 (INS) et rattachement au district (Wikidata `P131`),
       migration 0006.
 - [x] 111 départements (`commune`) : 108 sous région + 3 sous districts
-      autonomes, rattachement Wikidata `P131`, coordonnées `P625` (migration
-      0007). Population départementale (RGPH 2021) différée — densification
-      ultérieure (accès INS requis).
+      autonomes, rattachement Wikidata `P131`, coordonnées `P625`, et
+      population RGPH 2021 (INS, via data.gouv.ci / citypopulation.de ; somme
+      départements = total région, national 29 389 150 exact) — migration 0007.
 
 ## Jalon 2 : donnée solaire brute
 
