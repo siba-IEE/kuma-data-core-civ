@@ -25,9 +25,9 @@ def test_unites_et_grandeurs_peuplees(db_session: Session) -> None:
     unites = db_session.execute(text("SELECT count(*) FROM unites")).scalar_one()
     grandeurs = db_session.execute(text("SELECT count(*) FROM grandeurs_referentiel")).scalar_one()
     assert unites == 160
-    # 34 grandeurs seedees en 0002 + 1 grandeur derivee ajoutee en 0011
-    # (ecart_relatif_ghi_sarah3_nasa, premiere grandeur calculee CIV).
-    assert grandeurs == 35
+    # 34 grandeurs seedees en 0002 + 2 grandeurs derivees d'ecart inter-source :
+    # ecart_relatif_ghi_sarah3_nasa (0011) et ecart_relatif_ghi_era5_nasa (0013).
+    assert grandeurs == 36
 
 
 def test_source_guineenne_retiree(db_session: Session) -> None:
@@ -43,4 +43,7 @@ def test_amont_generique_present(db_session: Session) -> None:
     codes = {row[0] for row in db_session.execute(text("SELECT code FROM sources")).all()}
     attendus = {"nasa_power", "ecmwf_era5", "sarah3_monthly", "cams_radiation", "kuma_calculs"}
     assert attendus <= codes
-    assert len(codes) == 14
+    # 14 sources amont génériques (seed 0002) + era5_pvgis ajoutée en 0012
+    # (ERA5 via PVGIS, 3ᵉ source GHI pour la triangulation).
+    assert "era5_pvgis" in codes
+    assert len(codes) == 15

@@ -1,40 +1,55 @@
-"""Tests d'intégration de la grandeur dérivée d'écart inter-source (migration 0011).
+"""Tests d'intégration des grandeurs dérivées d'écart inter-source GHI.
 
-Première grandeur calculée de l'instance CIV : écart relatif du GHI mensuel
-entre SARAH-3/PVGIS et NASA POWER, ``(sarah3 - nasa) / nasa * 100``, matérialisé
-dans ``grandeurs_metier`` sur la fenêtre commune 2005-2020 (ADR-0009).
+Deux écarts inter-source du GHI mensuel, matérialisés dans ``grandeurs_metier``
+sur la fenêtre commune 2005-2020, tous deux référés à NASA POWER (dénominateur
+commun → triangulation, ADR-0009 et ADR-0010) :
 
-Vérifie les trois pièges tranchés :
-- **classification** ``strategie_calcul='stockee'`` (pas ``calculee_volee``) ;
-- **fenêtre commune** stricte 2005-2020, 576 lignes, pas de mois hors
-  intersection ;
-- **confiance** dérivée B, statut brut.
-Et la **fidélité** : la valeur gravée est recalculée indépendamment depuis les
-deux seeds bruts (NASA GHI + SARAH-3 GHI).
+- ``ecart_relatif_ghi_sarah3_nasa`` (SARAH-3 vs NASA, migration 0011) ;
+- ``ecart_relatif_ghi_era5_nasa`` (ERA5 vs NASA, migration 0013).
+
+Vérifie, pour chacun, les trois pièges tranchés (classification ``stockee``,
+fenêtre commune stricte 2005-2020 / 576 lignes, confiance B / statut brut) et la
+**fidélité** : la valeur gravée est recalculée indépendamment depuis les deux
+seeds bruts (source comparée + NASA POWER), même formule ``(x - nasa)/nasa*100``.
 """
 
 from __future__ import annotations
 
 from types import ModuleType
+from typing import NamedTuple
 
 import pytest
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from kuma_data_core.db.seeds import series_nasa_power_ghi_mensuel_civ as np_ghi
+from kuma_data_core.db.seeds import series_pvgis_era5_ghi_mensuel_civ as era5_ghi
 from kuma_data_core.db.seeds import series_pvgis_sarah3_ghi_mensuel_civ as sarah3_ghi
 
 pytestmark = pytest.mark.integration
 
-GRANDEUR_CODE = "ecart_relatif_ghi_sarah3_nasa"
-CODES_SERIES = (
-    "ecart_ghi_sarah3_nasa_civ_dep_abidjan",
-    "ecart_ghi_sarah3_nasa_civ_dep_yamoussoukro",
-    "ecart_ghi_sarah3_nasa_civ_dep_korhogo",
-)
 ANNEE_DEBUT_COMMUN = 2005
 ANNEE_FIN_COMMUN = 2020
 NB_LIGNES_ATTENDU = 576  # 192 mois * 3 points
+_LOCALITES = {s["localite_code"] for s in np_ghi.SERIES}  # les 3 points (référence commune)
+
+
+class Ecart(NamedTuple):
+    """Un écart inter-source : grandeur, préfixe de série, seed de la source comparée."""
+
+    grandeur_code: str
+    prefixe_serie: str
+    seed_compare: ModuleType  # source au numérateur (SARAH-3 ou ERA5)
+
+
+_ECARTS = [
+    Ecart("ecart_relatif_ghi_sarah3_nasa", "ecart_ghi_sarah3_nasa", sarah3_ghi),
+    Ecart("ecart_relatif_ghi_era5_nasa", "ecart_ghi_era5_nasa", era5_ghi),
+]
+
+
+def _id(e: Ecart) -> str:
+    return e.grandeur_code
 
 
 def _mesures_par_localite(seed: ModuleType) -> dict[str, dict[tuple[int, int], float]]:
@@ -45,21 +60,22 @@ def _mesures_par_localite(seed: ModuleType) -> dict[str, dict[tuple[int, int], f
     return out
 
 
-def _ecart_attendu() -> dict[tuple[str, int, int], float]:
-    """Recalcule l'écart attendu depuis les deux seeds, sur l'intersection."""
+def _ecart_attendu(seed_compare: ModuleType) -> dict[tuple[str, int, int], float]:
+    """Recalcule l'écart attendu (compare - nasa)/nasa*100 sur l'intersection."""
     nasa = _mesures_par_localite(np_ghi)
-    sarah = _mesures_par_localite(sarah3_ghi)
+    compare = _mesures_par_localite(seed_compare)
     attendu: dict[tuple[str, int, int], float] = {}
-    for loc, sarah_mesures in sarah.items():
+    for loc, compare_mesures in compare.items():
         nasa_mesures = nasa[loc]
-        for (annee, mois), v_sarah in sarah_mesures.items():
+        for (annee, mois), v_compare in compare_mesures.items():
             if (annee, mois) in nasa_mesures:
                 v_nasa = nasa_mesures[(annee, mois)]
-                attendu[(loc, annee, mois)] = (v_sarah - v_nasa) / v_nasa * 100.0
+                attendu[(loc, annee, mois)] = (v_compare - v_nasa) / v_nasa * 100.0
     return attendu
 
 
-def test_grandeur_referentiel_stockee(db_session: Session) -> None:
+@pytest.mark.parametrize("ecart", _ECARTS, ids=_id)
+def test_grandeur_referentiel_stockee(db_session: Session, ecart: Ecart) -> None:
     """La grandeur est F1, unité pourcent, et stockee (pas calculee_volee)."""
     row = db_session.execute(
         text(
@@ -70,14 +86,15 @@ def test_grandeur_referentiel_stockee(db_session: Session) -> None:
             WHERE g.code = :c
             """
         ),
-        {"c": GRANDEUR_CODE},
+        {"c": ecart.grandeur_code},
     ).one()
     assert row.famille == "F1"
     assert row.strategie_calcul == "stockee"  # ADR-0009 piège 1 : matérialisée, déterministe
     assert row.unite == "pourcent"
 
 
-def test_series_calculees(db_session: Session) -> None:
+@pytest.mark.parametrize("ecart", _ECARTS, ids=_id)
+def test_series_calculees(db_session: Session, ecart: Ecart) -> None:
     """3 séries calculées, source éditoriale kuma_calculs, calcul_derive, granularite NULL."""
     rows = db_session.execute(
         text(
@@ -89,9 +106,9 @@ def test_series_calculees(db_session: Session) -> None:
             WHERE s.grandeur_code = :c
             """
         ),
-        {"c": GRANDEUR_CODE},
+        {"c": ecart.grandeur_code},
     ).all()
-    assert {r.code for r in rows} == set(CODES_SERIES)
+    assert {r.code for r in rows} == {f"{ecart.prefixe_serie}_{loc}" for loc in _LOCALITES}
     for r in rows:
         assert r.source == "kuma_calculs", r.code
         assert r.methode_collecte == "calcul_derive", r.code
@@ -99,7 +116,8 @@ def test_series_calculees(db_session: Session) -> None:
         assert str(r.periode_debut) == "2005-01-01" and str(r.periode_fin) == "2020-12-31"
 
 
-def test_completude_et_fenetre_commune(db_session: Session) -> None:
+@pytest.mark.parametrize("ecart", _ECARTS, ids=_id)
+def test_completude_et_fenetre_commune(db_session: Session, ecart: Ecart) -> None:
     """576 lignes mensuelles, strictement sur la fenêtre commune 2005-2020."""
     rows = db_session.execute(
         text(
@@ -109,7 +127,7 @@ def test_completude_et_fenetre_commune(db_session: Session) -> None:
             WHERE gm.grandeur_code = :c
             """
         ),
-        {"c": GRANDEUR_CODE},
+        {"c": ecart.grandeur_code},
     ).all()
     assert len(rows) == NB_LIGNES_ATTENDU
     for r in rows:
@@ -122,7 +140,8 @@ def test_completude_et_fenetre_commune(db_session: Session) -> None:
     assert min(annees) == ANNEE_DEBUT_COMMUN
 
 
-def test_invariants_confiance_statut(db_session: Session) -> None:
+@pytest.mark.parametrize("ecart", _ECARTS, ids=_id)
+def test_invariants_confiance_statut(db_session: Session, ecart: Ecart) -> None:
     """Toutes les lignes : confiance B dérivée, statut brut, version 1."""
     rows = db_session.execute(
         text(
@@ -131,7 +150,7 @@ def test_invariants_confiance_statut(db_session: Session) -> None:
             FROM grandeurs_metier WHERE grandeur_code = :c
             """
         ),
-        {"c": GRANDEUR_CODE},
+        {"c": ecart.grandeur_code},
     ).all()
     assert len(rows) == NB_LIGNES_ATTENDU
     for r in rows:
@@ -140,9 +159,10 @@ def test_invariants_confiance_statut(db_session: Session) -> None:
         assert r.version_formule == 1
 
 
-def test_valeurs_fideles_au_calcul(db_session: Session) -> None:
+@pytest.mark.parametrize("ecart", _ECARTS, ids=_id)
+def test_valeurs_fideles_au_calcul(db_session: Session, ecart: Ecart) -> None:
     """Chaque écart gravé = recalcul indépendant depuis les deux seeds bruts."""
-    attendu = _ecart_attendu()
+    attendu = _ecart_attendu(ecart.seed_compare)
     assert len(attendu) == NB_LIGNES_ATTENDU  # les seeds eux-mêmes donnent 576
     rows = db_session.execute(
         text(
@@ -153,7 +173,7 @@ def test_valeurs_fideles_au_calcul(db_session: Session) -> None:
             WHERE gm.grandeur_code = :c
             """
         ),
-        {"c": GRANDEUR_CODE},
+        {"c": ecart.grandeur_code},
     ).all()
     assert len(rows) == NB_LIGNES_ATTENDU
     for r in rows:
