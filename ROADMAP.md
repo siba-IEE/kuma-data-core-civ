@@ -59,9 +59,9 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
       0013, [ADR-0010](decisions/0010-triangulation-ghi-era5-troisieme-source.md).
 - [x] **Triangulation GHI à 4 sources** : 3ᵉ écart CAMS vs NASA POWER
       (`ecart_relatif_ghi_cams_nasa`, migration 0015), et **premier écart DNI**
-      (`ecart_relatif_dni_cams_nasa`, migration 0016, CAMS +29 à +75 % au-dessus
-      de NASA, pic en mousson plutôt qu'en Harmattan). Même référence NASA POWER
-      pour tous les écarts — [ADR-0011](decisions/0011-cams-radiation-ghi-dni-quatrieme-source.md).
+      (`ecart_relatif_dni_cams_nasa`, migration 0016, CAMS +31 à +78 % au-dessus
+      de NASA en moyenne des ratios mensuels gravés, pic en mousson plutôt
+      qu'en Harmattan). Même référence NASA POWER pour tous les écarts — [ADR-0011](decisions/0011-cams-radiation-ghi-dni-quatrieme-source.md).
 - [ ] Grandeurs métier calculées (POA, productible, P50/P90, salissure, PR
       réaliste) exposées par l'API.
 - [ ] Contrôle qualité horaire.

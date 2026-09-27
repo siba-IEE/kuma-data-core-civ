@@ -17,8 +17,9 @@ le projet suit le versionnement sémantique.
   **premier écart DNI** de l'instance. Résultats : GHI CAMS ≈ NASA à Abidjan
   (−0,8 %), proche de SARAH-3 à Yamoussoukro (+13,7 %), ce qui nuance la lecture
   d'ADR-0010 (CAMS et SARAH-3 partagent l'imagerie Meteosat : pas deux votes
-  indépendants) ; DNI CAMS **+29 à +75 %** au-dessus de NASA, mais avec un pic en
-  **mousson (JJA)** et non en Harmattan (DJF) : l'hypothèse « signature du
+  indépendants) ; DNI CAMS **+31,5 à +78,1 %** au-dessus de NASA (moyenne des
+  ratios mensuels gravés ; +29 à +75 % en rapport des moyennes), mais avec un
+  pic en **mousson (JJA)** et non en Harmattan (DJF) : l'hypothèse « signature du
   Harmattan » n'est pas confirmée. La grandeur héritée `ecart_relatif_dni_cams`
   (id 27, CAMS au dénominateur) n'est pas réemployée. Seeds générés par
   `scripts/ingest_cams_radiation_mensuel.py` (clé `ADS_API_KEY`) ; migrations

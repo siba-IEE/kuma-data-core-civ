@@ -81,8 +81,9 @@ Ingestion ADS du 2026-09-27 (3 requêtes, ~1-4 min de file chacune) ; 6 séries
 × 192 mois, toutes dans les bornes (GHI ∈ [3,33 ; 6,58], DNI ∈ [0,94 ; 7,68]
 kWh/m²/jour). Aucun mois manquant, aucune valeur comblée.
 
-**GHI — triangulation à 4 sources** (kWh/m²/jour ; écarts en rapport de moyennes
-de période, la grandeur stocke le ratio par mois) :
+**GHI — triangulation à 4 sources** (kWh/m²/jour ; écarts en **rapport des
+moyennes** de période. La grandeur gravée stocke un ratio **par mois**, dont la
+moyenne vaut, pour CAMS − NASA : −0,9 % / +13,7 % / +8,5 %) :
 
 | Point | NASA | CAMS | SARAH-3 | ERA5 | CAMS − NASA | SARAH-3 − NASA | ERA5 − NASA |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -98,6 +99,12 @@ de période, la grandeur stocke le ratio par mois) :
 | Yamoussoukro | 2,05 | 3,58 | **+74,7 %** | +78,1 % | +64,1 % | +85,3 % |
 | Korhogo | 3,07 | 4,55 | **+48,2 %** | +51,8 % | +45,6 % | +69,3 % |
 
+*Deux statistiques différentes : « CAMS − NASA » est le **rapport des moyennes**
+de période (`moy(cams)/moy(nasa) − 1`) ; « moy. écart mensuel », DJF et JJA sont
+des **moyennes des ratios mensuels** effectivement gravés dans
+`ecart_relatif_dni_cams_nasa`. L'écart entre les deux (~3 points) est plus large
+que pour le GHI, car le DNI varie davantage d'un mois à l'autre (cf. ADR-0009).*
+
 **Lecture (honnête, sans sur-interprétation) :**
 
 - **GHI, la 4ᵉ source nuance la lecture d'ADR-0010.** À Abidjan, CAMS colle à
@@ -108,7 +115,8 @@ de période, la grandeur stocke le ratio par mois) :
   exploitent tous deux l'imagerie **Meteosat** ; leur concordance est en partie
   structurelle et ne vaut pas deux votes indépendants.
 - **DNI : le signe attendu est confirmé** (CAMS nettement au-dessus de NASA aux 3
-  points, de +29 % à +75 %, écart mensuel toujours positif à Korhogo et
+  points : +29 % à +75 % en rapport des moyennes, +31,5 % à +78,1 % en moyenne
+  des ratios mensuels gravés ; écart mensuel toujours positif à Korhogo et
   Yamoussoukro).
 - **L'hypothèse « signature du Harmattan » n'est pas confirmée par la
   saisonnalité** : l'écart culmine en **JJA (mousson)**, pas en **DJF
