@@ -3,7 +3,8 @@
 Irradiation mensuelle aux 3 points CIV, paramétré par seed de série :
 - GHI NASA POWER 1991-2020 (360 mesures, ADR-0007) ;
 - DNI NASA POWER 2001-2020 (240 mesures — le DNI NASA POWER commence en 2001) ;
-- GHI SARAH-3/PVGIS 2005-2020 (192 mesures, ADR-0008).
+- GHI SARAH-3/PVGIS 2005-2020 (192 mesures, ADR-0008) ;
+- GHI ERA5/PVGIS 2005-2020 (192 mesures, réanalyse, ADR-0010).
 Métadonnées de série, complétude, invariants (mois 1-12, confiance B, statut
 brut, bornes) et fidélité au seed. Chaque seed porte sa source, sa grandeur et
 sa période — le test les lit du module, sans littéral en dur.
@@ -19,11 +20,12 @@ from sqlalchemy.orm import Session
 
 from kuma_data_core.db.seeds import series_nasa_power_dni_mensuel_civ as np_dni
 from kuma_data_core.db.seeds import series_nasa_power_ghi_mensuel_civ as np_ghi
+from kuma_data_core.db.seeds import series_pvgis_era5_ghi_mensuel_civ as era5_ghi
 from kuma_data_core.db.seeds import series_pvgis_sarah3_ghi_mensuel_civ as sarah3_ghi
 
 pytestmark = pytest.mark.integration
 
-_SEEDS = [np_ghi, np_dni, sarah3_ghi]
+_SEEDS = [np_ghi, np_dni, sarah3_ghi, era5_ghi]
 
 
 def _id(seed: ModuleType) -> str:
@@ -56,7 +58,7 @@ def test_series_metadonnees(db_session: Session, seed: ModuleType) -> None:
     for r in lignes:
         assert r.grandeur_code == seed.GRANDEUR_CODE, r.code
         assert r.granularite == "mensuel", r.code
-        assert r.methode_collecte == "modele_satellitaire", r.code
+        assert r.methode_collecte == seed.METHODE_COLLECTE, r.code
         assert r.source == seed.SOURCE_CODE, r.code
         assert str(r.periode_debut) == seed.PERIODE_DEBUT and str(r.periode_fin) == seed.PERIODE_FIN
         assert r.localite == localites[r.code], r.code

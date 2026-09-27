@@ -7,6 +7,19 @@ le projet suit le versionnement sémantique.
 
 ### Ajouté
 
+- Jalon 3 (grandeurs) — **triangulation inter-source du GHI** : ajout d'une
+  **3ᵉ source**, **ERA5** (réanalyse ECMWF, via PVGIS), aux 3 points sur
+  2005-2020 (migration 0012, ADR-0010), et d'un **2ᵉ écart dérivé**
+  `ecart_relatif_ghi_era5_nasa` (migration 0013), partageant la référence
+  NASA POWER avec l'écart SARAH-3. Deux écarts sur le même dénominateur
+  **localisent l'aberrant** par point : à Abidjan ERA5 (+7,3 %) et SARAH-3
+  (+6,6 %) concordent → NASA est le point bas ; à Yamoussoukro ERA5 (+1,8 %)
+  colle à NASA tandis que SARAH-3 (+16,6 %) s'envole → SARAH-3 est l'aberrant.
+  ERA5 est une source de **comparaison**, jamais une référence (réanalyse de
+  moindre qualité que le satellite en Afrique de l'Ouest, Sawadogo 2023 —
+  caveat gravé). Extension honnête de `methode_collecte` avec `reanalyse`
+  (ERA5 n'est pas satellitaire) ; nouvelle source `era5_pvgis` traçant le
+  canal PVGIS. Ingesteur dédié (`scripts/ingest_pvgis_era5_mensuel.py`).
 - Jalon 3 (grandeurs) — **première grandeur dérivée** de l'instance CIV :
   l'**écart inter-source** relatif du GHI, `ecart_relatif_ghi_sarah3_nasa`
   (migration 0011, ADR-0009). Formule `(sarah3 − nasa) / nasa × 100` (NASA

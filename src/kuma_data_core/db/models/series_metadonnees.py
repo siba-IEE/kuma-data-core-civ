@@ -184,12 +184,14 @@ class SerieMetadonnees(Base):
             "OR (actif = FALSE AND desactive_le IS NOT NULL)",
             name="ck_series_metadonnees_actif_desactive_coherent",
         ),
-        # CHECK methode_collecte (migration 016) :
-        # 6 valeurs anticipees par les mecaniques transverses.
+        # CHECK methode_collecte (migration 016) : 6 valeurs anticipees par les
+        # mecaniques transverses, + 'reanalyse' ajoutee en 0012 (ERA5 n'est pas
+        # satellitaire ; cf. ADR-0010).
         CheckConstraint(
             "methode_collecte IS NULL OR methode_collecte IN ("
             "'mesure_directe', 'modele_satellitaire', 'interpolation_geographique', "
-            "'extrapolation_temporelle', 'calcul_derive', 'expertise_humaine')",
+            "'extrapolation_temporelle', 'calcul_derive', 'expertise_humaine', "
+            "'reanalyse')",
             name="ck_series_metadonnees_methode_collecte_valide",
         ),
         Index("idx_series_metadonnees_actif", "actif"),
