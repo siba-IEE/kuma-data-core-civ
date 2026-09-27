@@ -38,7 +38,10 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
   - [x] GHI mensuel ERA5 (réanalyse, via PVGIS), 2005-2020, mêmes 3 points
         (migration 0012, ADR-0010) — 3ᵉ source, classe de méthode indépendante
         (réanalyse) pour la triangulation inter-source.
-  - [ ] DHI, autres points, CAMS.
+  - [x] GHI **et** DNI mensuels CAMS Radiation (Heliosat-4, ADS Copernicus),
+        2005-2020, mêmes 3 points (migration 0014, ADR-0011) — 4ᵉ source GHI
+        et **2ᵉ source DNI** ; source existante `cams_radiation` (id 13).
+  - [ ] DHI, autres points.
 - [ ] Chaîne d'ingestion reproductible.
   - [x] Ingesteur NASA POWER mensuel (`scripts/ingest_nasa_power_mensuel.py`,
         paramétré par grandeur, hors-ligne → seed → migration ; garde-fous
@@ -54,6 +57,11 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
       (`ecart_relatif_ghi_era5_nasa`), même référence commune que l'écart
       SARAH-3 → localisation de l'aberrant par (localité, mois) — migration
       0013, [ADR-0010](decisions/0010-triangulation-ghi-era5-troisieme-source.md).
+- [x] **Triangulation GHI à 4 sources** : 3ᵉ écart CAMS vs NASA POWER
+      (`ecart_relatif_ghi_cams_nasa`, migration 0015), et **premier écart DNI**
+      (`ecart_relatif_dni_cams_nasa`, migration 0016, CAMS +29 à +75 % au-dessus
+      de NASA, pic en mousson plutôt qu'en Harmattan). Même référence NASA POWER
+      pour tous les écarts — [ADR-0011](decisions/0011-cams-radiation-ghi-dni-quatrieme-source.md).
 - [ ] Grandeurs métier calculées (POA, productible, P50/P90, salissure, PR
       réaliste) exposées par l'API.
 - [ ] Contrôle qualité horaire.
