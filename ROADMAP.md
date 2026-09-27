@@ -35,7 +35,10 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
   - [x] GHI mensuel SARAH-3 (PVGIS), 2005-2020, mêmes 3 points (migration
         0010, ADR-0008) — 2ᵉ source, écart inter-source calculable en base
         (SARAH-3 systématiquement plus haut que NASA POWER, +7 à +17 %).
-  - [ ] DHI, autres points, CAMS/ERA5-Land.
+  - [x] GHI mensuel ERA5 (réanalyse, via PVGIS), 2005-2020, mêmes 3 points
+        (migration 0012, ADR-0010) — 3ᵉ source, classe de méthode indépendante
+        (réanalyse) pour la triangulation inter-source.
+  - [ ] DHI, autres points, CAMS.
 - [ ] Chaîne d'ingestion reproductible.
   - [x] Ingesteur NASA POWER mensuel (`scripts/ingest_nasa_power_mensuel.py`,
         paramétré par grandeur, hors-ligne → seed → migration ; garde-fous
@@ -47,6 +50,10 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
       SARAH-3 vs NASA POWER (`ecart_relatif_ghi_sarah3_nasa`, `stockee`),
       matérialisé dans `grandeurs_metier` sur la fenêtre commune 2005-2020
       (576 lignes, confiance B) — migration 0011, [ADR-0009](decisions/0009-grandeur-derivee-ecart-inter-source-ghi.md).
+- [x] **Triangulation inter-source GHI** : 2ᵉ écart dérivé ERA5 vs NASA POWER
+      (`ecart_relatif_ghi_era5_nasa`), même référence commune que l'écart
+      SARAH-3 → localisation de l'aberrant par (localité, mois) — migration
+      0013, [ADR-0010](decisions/0010-triangulation-ghi-era5-troisieme-source.md).
 - [ ] Grandeurs métier calculées (POA, productible, P50/P90, salissure, PR
       réaliste) exposées par l'API.
 - [ ] Contrôle qualité horaire.
