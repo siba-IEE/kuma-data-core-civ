@@ -7,6 +7,22 @@ le projet suit le versionnement sémantique.
 
 ### Ajouté
 
+- Jalon 2/3 — **CAMS Radiation** (Heliosat-4, ADS Copernicus) : GHI **et** DNI
+  mensuels all-sky 2005-2020 aux 3 points (migration 0014, ADR-0011), 6 séries
+  × 192 = **1152 mesures**, confiance B, source existante `cams_radiation`
+  (id 13, satellitaire : aucune extension d'énumération). Deux écarts dérivés,
+  **NASA POWER au dénominateur** (même contrat qu'ADR-0009, 576 lignes chacun,
+  jointure SQL sur la fenêtre commune) : `ecart_relatif_ghi_cams_nasa` (0015),
+  4ᵉ point de la triangulation GHI, et `ecart_relatif_dni_cams_nasa` (0016),
+  **premier écart DNI** de l'instance. Résultats : GHI CAMS ≈ NASA à Abidjan
+  (−0,8 %), proche de SARAH-3 à Yamoussoukro (+13,7 %), ce qui nuance la lecture
+  d'ADR-0010 (CAMS et SARAH-3 partagent l'imagerie Meteosat : pas deux votes
+  indépendants) ; DNI CAMS **+29 à +75 %** au-dessus de NASA, mais avec un pic en
+  **mousson (JJA)** et non en Harmattan (DJF) : l'hypothèse « signature du
+  Harmattan » n'est pas confirmée. La grandeur héritée `ecart_relatif_dni_cams`
+  (id 27, CAMS au dénominateur) n'est pas réemployée. Seeds générés par
+  `scripts/ingest_cams_radiation_mensuel.py` (clé `ADS_API_KEY`) ; migrations
+  hors-ligne.
 - Jalon 3 (grandeurs) — **triangulation inter-source du GHI** : ajout d'une
   **3ᵉ source**, **ERA5** (réanalyse ECMWF, via PVGIS), aux 3 points sur
   2005-2020 (migration 0012, ADR-0010), et d'un **2ᵉ écart dérivé**

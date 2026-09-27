@@ -1,16 +1,21 @@
-"""Tests d'intégration des grandeurs dérivées d'écart inter-source GHI.
+"""Tests d'intégration des grandeurs dérivées d'écart inter-source (GHI et DNI).
 
-Deux écarts inter-source du GHI mensuel, matérialisés dans ``grandeurs_metier``
-sur la fenêtre commune 2005-2020, tous deux référés à NASA POWER (dénominateur
-commun → triangulation, ADR-0009 et ADR-0010) :
+Écarts inter-source mensuels, matérialisés dans ``grandeurs_metier`` sur la
+fenêtre commune 2005-2020, tous référés à NASA POWER (dénominateur commun →
+triangulation, ADR-0009, ADR-0010 et ADR-0011) :
 
-- ``ecart_relatif_ghi_sarah3_nasa`` (SARAH-3 vs NASA, migration 0011) ;
-- ``ecart_relatif_ghi_era5_nasa`` (ERA5 vs NASA, migration 0013).
+- ``ecart_relatif_ghi_sarah3_nasa`` (GHI SARAH-3 vs NASA, migration 0011) ;
+- ``ecart_relatif_ghi_era5_nasa`` (GHI ERA5 vs NASA, migration 0013) ;
+- ``ecart_relatif_ghi_cams_nasa`` (GHI CAMS vs NASA, migration 0015) ;
+- ``ecart_relatif_dni_cams_nasa`` (DNI CAMS vs NASA, migration 0016) — premier
+  écart DNI ; la référence NASA DNI couvre 2001-2020, la fenêtre commune reste
+  2005-2020.
 
 Vérifie, pour chacun, les trois pièges tranchés (classification ``stockee``,
 fenêtre commune stricte 2005-2020 / 576 lignes, confiance B / statut brut) et la
 **fidélité** : la valeur gravée est recalculée indépendamment depuis les deux
-seeds bruts (source comparée + NASA POWER), même formule ``(x - nasa)/nasa*100``.
+seeds bruts (source comparée + NASA POWER de la même grandeur), même formule
+``(x - nasa)/nasa*100``.
 """
 
 from __future__ import annotations
@@ -22,6 +27,9 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from kuma_data_core.db.seeds import series_cams_dni_mensuel_civ as cams_dni
+from kuma_data_core.db.seeds import series_cams_ghi_mensuel_civ as cams_ghi
+from kuma_data_core.db.seeds import series_nasa_power_dni_mensuel_civ as np_dni
 from kuma_data_core.db.seeds import series_nasa_power_ghi_mensuel_civ as np_ghi
 from kuma_data_core.db.seeds import series_pvgis_era5_ghi_mensuel_civ as era5_ghi
 from kuma_data_core.db.seeds import series_pvgis_sarah3_ghi_mensuel_civ as sarah3_ghi
@@ -35,16 +43,19 @@ _LOCALITES = {s["localite_code"] for s in np_ghi.SERIES}  # les 3 points (réfé
 
 
 class Ecart(NamedTuple):
-    """Un écart inter-source : grandeur, préfixe de série, seed de la source comparée."""
+    """Un écart inter-source : grandeur, préfixe de série, seeds comparé et référence."""
 
     grandeur_code: str
     prefixe_serie: str
-    seed_compare: ModuleType  # source au numérateur (SARAH-3 ou ERA5)
+    seed_compare: ModuleType  # source au numérateur (SARAH-3, ERA5 ou CAMS)
+    seed_reference: ModuleType  # NASA POWER de la même grandeur brute (dénominateur)
 
 
 _ECARTS = [
-    Ecart("ecart_relatif_ghi_sarah3_nasa", "ecart_ghi_sarah3_nasa", sarah3_ghi),
-    Ecart("ecart_relatif_ghi_era5_nasa", "ecart_ghi_era5_nasa", era5_ghi),
+    Ecart("ecart_relatif_ghi_sarah3_nasa", "ecart_ghi_sarah3_nasa", sarah3_ghi, np_ghi),
+    Ecart("ecart_relatif_ghi_era5_nasa", "ecart_ghi_era5_nasa", era5_ghi, np_ghi),
+    Ecart("ecart_relatif_ghi_cams_nasa", "ecart_ghi_cams_nasa", cams_ghi, np_ghi),
+    Ecart("ecart_relatif_dni_cams_nasa", "ecart_dni_cams_nasa", cams_dni, np_dni),
 ]
 
 
@@ -60,10 +71,12 @@ def _mesures_par_localite(seed: ModuleType) -> dict[str, dict[tuple[int, int], f
     return out
 
 
-def _ecart_attendu(seed_compare: ModuleType) -> dict[tuple[str, int, int], float]:
+def _ecart_attendu(ecart: Ecart) -> dict[tuple[str, int, int], float]:
     """Recalcule l'écart attendu (compare - nasa)/nasa*100 sur l'intersection."""
-    nasa = _mesures_par_localite(np_ghi)
-    compare = _mesures_par_localite(seed_compare)
+    assert ecart.seed_compare.GRANDEUR_CODE == ecart.seed_reference.GRANDEUR_CODE
+    assert ecart.seed_reference.SOURCE_CODE == "nasa_power"
+    nasa = _mesures_par_localite(ecart.seed_reference)
+    compare = _mesures_par_localite(ecart.seed_compare)
     attendu: dict[tuple[str, int, int], float] = {}
     for loc, compare_mesures in compare.items():
         nasa_mesures = nasa[loc]
@@ -162,7 +175,7 @@ def test_invariants_confiance_statut(db_session: Session, ecart: Ecart) -> None:
 @pytest.mark.parametrize("ecart", _ECARTS, ids=_id)
 def test_valeurs_fideles_au_calcul(db_session: Session, ecart: Ecart) -> None:
     """Chaque écart gravé = recalcul indépendant depuis les deux seeds bruts."""
-    attendu = _ecart_attendu(ecart.seed_compare)
+    attendu = _ecart_attendu(ecart)
     assert len(attendu) == NB_LIGNES_ATTENDU  # les seeds eux-mêmes donnent 576
     rows = db_session.execute(
         text(
@@ -180,3 +193,27 @@ def test_valeurs_fideles_au_calcul(db_session: Session, ecart: Ecart) -> None:
         cle = (r.localite, r.annee, r.mois)
         assert cle in attendu, cle
         assert r.valeur == pytest.approx(attendu[cle]), cle
+
+
+def test_grandeur_heritee_dni_cams_non_reemployee(db_session: Session) -> None:
+    """L'héritée ``ecart_relatif_dni_cams`` (id 27, CAMS au dénominateur) reste vide.
+
+    ADR-0011 : en CIV, NASA POWER est la référence uniforme ; l'écart DNI gravé est
+    ``ecart_relatif_dni_cams_nasa`` (id 38), jamais l'héritée d'orientation inverse.
+    """
+    ids = dict(
+        db_session.execute(
+            text(
+                """
+                SELECT code, id FROM grandeurs_referentiel
+                WHERE code IN ('ecart_relatif_dni_cams', 'ecart_relatif_dni_cams_nasa')
+                """
+            )
+        ).all()
+    )
+    assert ids == {"ecart_relatif_dni_cams": 27, "ecart_relatif_dni_cams_nasa": 38}
+    for table in ("grandeurs_metier", "series_metadonnees"):
+        nb = db_session.execute(
+            text(f"SELECT COUNT(*) FROM {table} WHERE grandeur_code = 'ecart_relatif_dni_cams'")
+        ).scalar_one()
+        assert nb == 0, table

@@ -1,6 +1,6 @@
 # ADR-0011 : CAMS Radiation — 4ᵉ source GHI et 1er écart DNI (NASA↔CAMS)
 
-Date : 2026-09-27. Statut : accepté (contrat ; gravure en attente de la clé ADS).
+Date : 2026-09-27. Statut : accepté — **gravé** (migrations 0014-0016, 2026-09-27).
 
 ## Contexte
 
@@ -45,7 +45,7 @@ intégrée en Wh/m²** ; on la ramène en moyenne journalière
 **repérées par nom** dans l'en-tête du CSV (robustesse), pas par index en dur.
 
 Résultat : **6 séries** brutes (GHI + DNI × 3 points) × 192 mesures = **1152
-mesures** (migration à venir).
+mesures** (migration 0014).
 
 ### Deux grandeurs d'écart dérivées — NASA POWER au dénominateur commun
 
@@ -59,7 +59,8 @@ lignes chacune) :
 2. **`ecart_relatif_dni_cams_nasa`** — `(cams − nasa) / nasa × 100` : **1er écart
    DNI** de l'instance. Attendu **fortement positif** (CAMS lit davantage de DNI
    que NASA sous aérosols — le moteur générique observe ≈ +35 % côté Guinée),
-   signature du Harmattan.
+   signature du Harmattan. *(Gravure : signe confirmé, mais pic saisonnier en
+   mousson et non en Harmattan — voir « Résultat de la gravure ».)*
 
 **Divergence assumée avec le précédent `ecart_relatif_dni_cams` (id 27,
 héritage Guinée)**, qui mettait **CAMS au dénominateur** (`(nasa − cams)/cams`,
@@ -73,6 +74,48 @@ réemployée (nom `_nasa` explicite pour lever l'ambiguïté d'orientation).
 
 Les deux entrées sont B (satellite). R4 sur `calcul_derive` (source
 `kuma_calculs`) → B ; `min(B, B) = B` ; jamais A. Idem ADR-0009.
+
+## Résultat de la gravure (moyennes 2005-2020)
+
+Ingestion ADS du 2026-09-27 (3 requêtes, ~1-4 min de file chacune) ; 6 séries
+× 192 mois, toutes dans les bornes (GHI ∈ [3,33 ; 6,58], DNI ∈ [0,94 ; 7,68]
+kWh/m²/jour). Aucun mois manquant, aucune valeur comblée.
+
+**GHI — triangulation à 4 sources** (kWh/m²/jour ; écarts en rapport de moyennes
+de période, la grandeur stocke le ratio par mois) :
+
+| Point | NASA | CAMS | SARAH-3 | ERA5 | CAMS − NASA | SARAH-3 − NASA | ERA5 − NASA |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Abidjan | 4,66 | 4,62 | 4,97 | 5,00 | **−0,8 %** | +6,6 % | +7,3 % |
+| Yamoussoukro | 4,60 | 5,23 | 5,36 | 4,68 | **+13,7 %** | +16,6 % | +1,8 % |
+| Korhogo | 5,29 | 5,74 | 5,88 | 5,55 | **+8,4 %** | +11,1 % | +4,9 % |
+
+**DNI — premier écart** (kWh/m²/jour) :
+
+| Point | NASA | CAMS | CAMS − NASA | moy. écart mensuel | DJF (Harmattan) | JJA (mousson) |
+|---|---:|---:|---:|---:|---:|---:|
+| Abidjan | 2,13 | 2,74 | **+29,1 %** | +31,5 % | +25,2 % | +38,2 % |
+| Yamoussoukro | 2,05 | 3,58 | **+74,7 %** | +78,1 % | +64,1 % | +85,3 % |
+| Korhogo | 3,07 | 4,55 | **+48,2 %** | +51,8 % | +45,6 % | +69,3 % |
+
+**Lecture (honnête, sans sur-interprétation) :**
+
+- **GHI, la 4ᵉ source nuance la lecture d'ADR-0010.** À Abidjan, CAMS colle à
+  NASA (−0,8 %) : on a maintenant 2 sources contre 2 (NASA/CAMS bas,
+  SARAH-3/ERA5 haut), et « NASA est le point bas » n'est plus tranché. À
+  Yamoussoukro, CAMS (+13,7 %) rejoint SARAH-3 (+16,6 %) contre NASA/ERA5 :
+  SARAH-3 n'y est plus isolé. **Caveat d'indépendance** : CAMS et SARAH-3
+  exploitent tous deux l'imagerie **Meteosat** ; leur concordance est en partie
+  structurelle et ne vaut pas deux votes indépendants.
+- **DNI : le signe attendu est confirmé** (CAMS nettement au-dessus de NASA aux 3
+  points, de +29 % à +75 %, écart mensuel toujours positif à Korhogo et
+  Yamoussoukro).
+- **L'hypothèse « signature du Harmattan » n'est pas confirmée par la
+  saisonnalité** : l'écart culmine en **JJA (mousson)**, pas en **DJF
+  (Harmattan)**, aux 3 points. Il est donc au moins autant piloté par le
+  traitement des **nuages** que par celui des aérosols. Le Harmattan reste une
+  question ouverte, pas un résultat. Il faudra une ancre sol DNI (Jalon 4) pour
+  dire quelle source est juste.
 
 ## Reproductibilité et accès
 
