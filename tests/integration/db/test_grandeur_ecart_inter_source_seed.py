@@ -2,14 +2,16 @@
 
 Écarts inter-source mensuels, matérialisés dans ``grandeurs_metier`` sur la
 fenêtre commune 2005-2020, tous référés à NASA POWER (dénominateur commun →
-triangulation, ADR-0009, ADR-0010 et ADR-0011) :
+triangulation, ADR-0009 à ADR-0012) :
 
 - ``ecart_relatif_ghi_sarah3_nasa`` (GHI SARAH-3 vs NASA, migration 0011) ;
 - ``ecart_relatif_ghi_era5_nasa`` (GHI ERA5 vs NASA, migration 0013) ;
 - ``ecart_relatif_ghi_cams_nasa`` (GHI CAMS vs NASA, migration 0015) ;
 - ``ecart_relatif_dni_cams_nasa`` (DNI CAMS vs NASA, migration 0016) — premier
   écart DNI ; la référence NASA DNI couvre 2001-2020, la fenêtre commune reste
-  2005-2020.
+  2005-2020 ;
+- ``ecart_relatif_dni_sarah3_nasa`` (DNI SARAH-3 vs NASA, migration 0019) ;
+- ``ecart_relatif_dni_era5_nasa`` (DNI ERA5 vs NASA, migration 0020).
 
 Vérifie, pour chacun, les trois pièges tranchés (classification ``stockee``,
 fenêtre commune stricte 2005-2020 / 576 lignes, confiance B / statut brut) et la
@@ -31,7 +33,9 @@ from kuma_data_core.db.seeds import series_cams_dni_mensuel_civ as cams_dni
 from kuma_data_core.db.seeds import series_cams_ghi_mensuel_civ as cams_ghi
 from kuma_data_core.db.seeds import series_nasa_power_dni_mensuel_civ as np_dni
 from kuma_data_core.db.seeds import series_nasa_power_ghi_mensuel_civ as np_ghi
+from kuma_data_core.db.seeds import series_pvgis_era5_dni_mensuel_civ as era5_dni
 from kuma_data_core.db.seeds import series_pvgis_era5_ghi_mensuel_civ as era5_ghi
+from kuma_data_core.db.seeds import series_pvgis_sarah3_dni_mensuel_civ as sarah3_dni
 from kuma_data_core.db.seeds import series_pvgis_sarah3_ghi_mensuel_civ as sarah3_ghi
 
 pytestmark = pytest.mark.integration
@@ -56,6 +60,8 @@ _ECARTS = [
     Ecart("ecart_relatif_ghi_era5_nasa", "ecart_ghi_era5_nasa", era5_ghi, np_ghi),
     Ecart("ecart_relatif_ghi_cams_nasa", "ecart_ghi_cams_nasa", cams_ghi, np_ghi),
     Ecart("ecart_relatif_dni_cams_nasa", "ecart_dni_cams_nasa", cams_dni, np_dni),
+    Ecart("ecart_relatif_dni_sarah3_nasa", "ecart_dni_sarah3_nasa", sarah3_dni, np_dni),
+    Ecart("ecart_relatif_dni_era5_nasa", "ecart_dni_era5_nasa", era5_dni, np_dni),
 ]
 
 

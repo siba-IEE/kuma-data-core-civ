@@ -7,6 +7,22 @@ le projet suit le versionnement sémantique.
 
 ### Ajouté
 
+- Jalon 2/3 — **triangulation DNI à 4 sources** (ADR-0012) : DNI mensuel
+  **SARAH-3** et **ERA5** via PVGIS (champ `Hb(n)_m`, option `mr_dni=1` de
+  `MRcalc`), 2005-2020 aux 3 points — migrations 0017 et 0018, 576 mesures
+  chacune, confiance B, sources existantes `sarah3_monthly` (id 11) et
+  `era5_pvgis` (id 16). Deux écarts dérivés, NASA POWER au dénominateur, même
+  contrat qu'ADR-0009 (576 lignes chacun) : `ecart_relatif_dni_sarah3_nasa`
+  (0019) et `ecart_relatif_dni_era5_nasa` (0020). Les ingesteurs PVGIS sont
+  paramétrés par grandeur (GHI + DNI en une requête par point) et régénèrent
+  les seeds GHI gravés **à l'octet près**. Résultats (moyenne des ratios
+  mensuels gravés) : **NASA POWER est l'aberrant bas du DNI** — SARAH-3 (+67 à
+  +96 %) et ERA5 (+88 à +125 %) sont au-dessus de NASA chaque mois, CAMS
+  (+31 à +78 %) sauf 3 mois sur 192 à Abidjan ; entre ces trois sources
+  l'étalement reste large. Le pic saisonnier dépend de la source (DJF pour
+  SARAH-3 à Abidjan et Yamoussoukro, JJA pour CAMS) : la lecture « Harmattan »
+  reste une question ouverte. Caveats gravés : ERA5 source de comparaison
+  seulement ; SARAH-3 et CAMS partagent l'imagerie Meteosat.
 - Jalon 2/3 — **CAMS Radiation** (Heliosat-4, ADS Copernicus) : GHI **et** DNI
   mensuels all-sky 2005-2020 aux 3 points (migration 0014, ADR-0011), 6 séries
   × 192 = **1152 mesures**, confiance B, source existante `cams_radiation`

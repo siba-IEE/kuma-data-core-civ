@@ -25,10 +25,11 @@ def test_unites_et_grandeurs_peuplees(db_session: Session) -> None:
     unites = db_session.execute(text("SELECT count(*) FROM unites")).scalar_one()
     grandeurs = db_session.execute(text("SELECT count(*) FROM grandeurs_referentiel")).scalar_one()
     assert unites == 160
-    # 34 grandeurs seedees en 0002 + 4 grandeurs derivees d'ecart inter-source :
+    # 34 grandeurs seedees en 0002 + 6 grandeurs derivees d'ecart inter-source :
     # ecart_relatif_ghi_sarah3_nasa (0011), ecart_relatif_ghi_era5_nasa (0013),
-    # ecart_relatif_ghi_cams_nasa (0015) et ecart_relatif_dni_cams_nasa (0016).
-    assert grandeurs == 38
+    # ecart_relatif_ghi_cams_nasa (0015), ecart_relatif_dni_cams_nasa (0016),
+    # ecart_relatif_dni_sarah3_nasa (0019) et ecart_relatif_dni_era5_nasa (0020).
+    assert grandeurs == 40
 
 
 def test_source_guineenne_retiree(db_session: Session) -> None:
@@ -46,6 +47,7 @@ def test_amont_generique_present(db_session: Session) -> None:
     assert attendus <= codes
     # 14 sources amont génériques (seed 0002) + era5_pvgis ajoutée en 0012
     # (ERA5 via PVGIS, 3ᵉ source GHI pour la triangulation). CAMS (0014)
-    # réutilise cams_radiation (id 13, seed 0002) : aucune source ajoutée.
+    # réutilise cams_radiation (id 13, seed 0002), et le DNI SARAH-3/ERA5 (0017,
+    # 0018) les sources de leur GHI : aucune source ajoutée.
     assert "era5_pvgis" in codes
     assert len(codes) == 15

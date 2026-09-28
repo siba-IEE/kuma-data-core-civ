@@ -123,7 +123,9 @@ que pour le GHI, car le DNI varie davantage d'un mois à l'autre (cf. ADR-0009).
   (Harmattan)**, aux 3 points. Il est donc au moins autant piloté par le
   traitement des **nuages** que par celui des aérosols. Le Harmattan reste une
   question ouverte, pas un résultat. Il faudra une ancre sol DNI (Jalon 4) pour
-  dire quelle source est juste.
+  dire quelle source est juste. *(Suite : ADR-0012 ajoute SARAH-3 et ERA5 au
+  DNI — NASA y ressort comme l'aberrant bas, et le motif saisonnier dépend de
+  la source.)*
 
 ## Reproductibilité et accès
 
