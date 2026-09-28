@@ -1,4 +1,4 @@
-"""Tests d'intégration des séries solaires brutes (migrations 0008-0014).
+"""Tests d'intégration des séries solaires brutes (migrations 0008-0018).
 
 Irradiation mensuelle aux 3 points CIV, paramétré par seed de série :
 - GHI NASA POWER 1991-2020 (360 mesures, ADR-0007) ;
@@ -6,7 +6,9 @@ Irradiation mensuelle aux 3 points CIV, paramétré par seed de série :
 - GHI SARAH-3/PVGIS 2005-2020 (192 mesures, ADR-0008) ;
 - GHI ERA5/PVGIS 2005-2020 (192 mesures, réanalyse, ADR-0010) ;
 - GHI et DNI CAMS Radiation 2005-2020 (192 mesures chacune, ADR-0011) — 2ᵉ
-  source DNI de l'instance.
+  source DNI de l'instance ;
+- DNI SARAH-3 et ERA5 via PVGIS 2005-2020 (192 mesures chacune, ADR-0012) —
+  triangulation DNI à 4 sources.
 Métadonnées de série, complétude, invariants (mois 1-12, confiance B, statut
 brut, bornes) et fidélité au seed. Chaque seed porte sa source, sa grandeur et
 sa période — le test les lit du module, sans littéral en dur.
@@ -24,12 +26,14 @@ from kuma_data_core.db.seeds import series_cams_dni_mensuel_civ as cams_dni
 from kuma_data_core.db.seeds import series_cams_ghi_mensuel_civ as cams_ghi
 from kuma_data_core.db.seeds import series_nasa_power_dni_mensuel_civ as np_dni
 from kuma_data_core.db.seeds import series_nasa_power_ghi_mensuel_civ as np_ghi
+from kuma_data_core.db.seeds import series_pvgis_era5_dni_mensuel_civ as era5_dni
 from kuma_data_core.db.seeds import series_pvgis_era5_ghi_mensuel_civ as era5_ghi
+from kuma_data_core.db.seeds import series_pvgis_sarah3_dni_mensuel_civ as sarah3_dni
 from kuma_data_core.db.seeds import series_pvgis_sarah3_ghi_mensuel_civ as sarah3_ghi
 
 pytestmark = pytest.mark.integration
 
-_SEEDS = [np_ghi, np_dni, sarah3_ghi, era5_ghi, cams_ghi, cams_dni]
+_SEEDS = [np_ghi, np_dni, sarah3_ghi, era5_ghi, cams_ghi, cams_dni, sarah3_dni, era5_dni]
 
 
 def _id(seed: ModuleType) -> str:

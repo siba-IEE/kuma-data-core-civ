@@ -41,6 +41,9 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
   - [x] GHI **et** DNI mensuels CAMS Radiation (Heliosat-4, ADS Copernicus),
         2005-2020, mêmes 3 points (migration 0014, ADR-0011) — 4ᵉ source GHI
         et **2ᵉ source DNI** ; source existante `cams_radiation` (id 13).
+  - [x] DNI mensuel SARAH-3 et ERA5 (PVGIS, `Hb(n)_m` via `mr_dni=1`),
+        2005-2020, mêmes 3 points (migrations 0017-0018, ADR-0012) — DNI à
+        4 sources ; sources existantes, ingesteurs PVGIS paramétrés GHI + DNI.
   - [ ] DHI, autres points.
 - [ ] Chaîne d'ingestion reproductible.
   - [x] Ingesteur NASA POWER mensuel (`scripts/ingest_nasa_power_mensuel.py`,
@@ -61,7 +64,13 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
       (`ecart_relatif_ghi_cams_nasa`, migration 0015), et **premier écart DNI**
       (`ecart_relatif_dni_cams_nasa`, migration 0016, CAMS +31 à +78 % au-dessus
       de NASA en moyenne des ratios mensuels gravés, pic en mousson plutôt
-      qu'en Harmattan). Même référence NASA POWER pour tous les écarts — [ADR-0011](decisions/0011-cams-radiation-ghi-dni-quatrieme-source.md).
+      qu'en Harmattan). Même référence NASA POWER pour tous les écarts —
+      [ADR-0011](decisions/0011-cams-radiation-ghi-dni-quatrieme-source.md).
+- [x] **Triangulation DNI à 4 sources** : écarts SARAH-3 et ERA5 vs NASA POWER
+      (`ecart_relatif_dni_sarah3_nasa`, `ecart_relatif_dni_era5_nasa`,
+      migrations 0019-0020). NASA POWER ressort comme l'aberrant bas du DNI ;
+      le motif saisonnier (Harmattan vs mousson) dépend de la source —
+      [ADR-0012](decisions/0012-triangulation-dni-pvgis-sarah3-era5.md).
 - [ ] Grandeurs métier calculées (POA, productible, P50/P90, salissure, PR
       réaliste) exposées par l'API.
 - [ ] Contrôle qualité horaire.
