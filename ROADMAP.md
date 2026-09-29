@@ -94,6 +94,10 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
       (`fraction_diffuse`, migration 0024) — première grandeur métier hors
       écart, calculée en base depuis le mensuel —
       [ADR-0014](decisions/0014-fraction-diffuse-nasa.md).
+- [x] **Grandeurs dérivées sur tout le territoire** : les 7 écarts
+      inter-sources et la fraction diffuse étendus aux 142 localités
+      (migrations 0028-0029, [ADR-0017](decisions/0017-grandeurs-derivees-lots-nationaux.md)) ;
+      NASA ressort aberrant bas du DNI dans 142 localités sur 142.
 - [ ] Grandeurs métier calculées (POA, productible, P50/P90, salissure, PR
       réaliste) exposées par l'API.
 - [ ] Contrôle qualité horaire.

@@ -127,13 +127,14 @@ DHI reste peu variable et les sources divergent sur son sens.
 
 ## Coût opérationnel
 
-La reconstruction complète 0001 → 0027 prend environ 2 min 30 et la suite de
-tests environ 4 min 30 (fidélité intégrale de chaque mesure). C'est le prix de
-la vérifiabilité ; à surveiller si d'autres lots s'ajoutent.
+La reconstruction complète 0001 → 0027 prend environ 2 min 30. La suite de
+tests prenait environ 4 min 30 ; la cause n'était pas la fidélité intégrale
+mais des statistiques Postgres absentes après les insertions massives, corrigé
+par l'ADR-0017 (suite ramenée à ~26 s, couverture intégrale conservée).
 
 ## Suite
 
 - Journalier NASA : gravé aux 3 pilotes et 31 régions (migration 0026,
   [ADR-0016](0016-nasa-power-journalier.md)).
-- Étendre les écarts inter-sources et la fraction diffuse aux lots : étape
-  distincte, à décider.
+- Écarts inter-sources et fraction diffuse étendus aux lots (migrations
+  0028-0029, [ADR-0017](0017-grandeurs-derivees-lots-nationaux.md)).

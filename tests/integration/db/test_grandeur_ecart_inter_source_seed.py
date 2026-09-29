@@ -13,13 +13,16 @@ triangulation, ADR-0009 à ADR-0013) :
 - ``ecart_relatif_dni_sarah3_nasa`` (DNI SARAH-3 vs NASA, migration 0019) ;
 - ``ecart_relatif_dni_era5_nasa`` (DNI ERA5 vs NASA, migration 0020) ;
 - ``ecart_relatif_dhi_cams_nasa`` (DHI CAMS vs NASA, migration 0023) — premier
-  écart DHI ; la référence NASA DHI couvre 1991-2020.
+  écart DHI ; la référence NASA DHI couvre 2001-2020.
+
+Gravés aux 3 pilotes par ces migrations, puis étendus aux 139 localités des lots
+nationaux par la migration 0028 (ADR-0017) : **142 localités** au total.
 
 Vérifie, pour chacun, les trois pièges tranchés (classification ``stockee``,
-fenêtre commune stricte 2005-2020 / 576 lignes, confiance B / statut brut) et la
-**fidélité** : la valeur gravée est recalculée indépendamment depuis les deux
-seeds bruts (source comparée + NASA POWER de la même grandeur), même formule
-``(x - nasa)/nasa*100``.
+fenêtre commune stricte 2005-2020 / 192 mois par localité, confiance B / statut
+brut) et la **fidélité** : la valeur gravée est recalculée indépendamment depuis
+les sources brutes (seeds pilotes et CSV des lots, source comparée + NASA POWER
+de la même grandeur), même formule ``(x - nasa)/nasa*100``.
 """
 
 from __future__ import annotations
@@ -41,13 +44,15 @@ from kuma_data_core.db.seeds import series_pvgis_era5_dni_mensuel_civ as era5_dn
 from kuma_data_core.db.seeds import series_pvgis_era5_ghi_mensuel_civ as era5_ghi
 from kuma_data_core.db.seeds import series_pvgis_sarah3_dni_mensuel_civ as sarah3_dni
 from kuma_data_core.db.seeds import series_pvgis_sarah3_ghi_mensuel_civ as sarah3_ghi
+from tests.integration.db.mesures_brutes import mesures_mensuelles
 
 pytestmark = pytest.mark.integration
 
 ANNEE_DEBUT_COMMUN = 2005
 ANNEE_FIN_COMMUN = 2020
-NB_LIGNES_ATTENDU = 576  # 192 mois * 3 points
-_LOCALITES = {s["localite_code"] for s in np_ghi.SERIES}  # les 3 points (référence commune)
+# 3 pilotes + 139 localités des lots nationaux (ADR-0017).
+_LOCALITES = set(mesures_mensuelles(np_ghi))
+NB_LIGNES_ATTENDU = 192 * len(_LOCALITES)  # 192 mois x 142 localités
 
 
 class Ecart(NamedTuple):
@@ -75,11 +80,8 @@ def _id(e: Ecart) -> str:
 
 
 def _mesures_par_localite(seed: ModuleType) -> dict[str, dict[tuple[int, int], float]]:
-    """Indexe les mesures d'un seed brut par localité puis (année, mois)."""
-    out: dict[str, dict[tuple[int, int], float]] = {}
-    for s in seed.SERIES:
-        out[s["localite_code"]] = {(a, m): v for a, m, v in s["mesures"]}
-    return out
+    """Mesures brutes par localité puis (année, mois) : pilotes + lots nationaux."""
+    return mesures_mensuelles(seed)
 
 
 def _ecart_attendu(ecart: Ecart) -> dict[tuple[str, int, int], float]:
@@ -187,7 +189,7 @@ def test_invariants_confiance_statut(db_session: Session, ecart: Ecart) -> None:
 def test_valeurs_fideles_au_calcul(db_session: Session, ecart: Ecart) -> None:
     """Chaque écart gravé = recalcul indépendant depuis les deux seeds bruts."""
     attendu = _ecart_attendu(ecart)
-    assert len(attendu) == NB_LIGNES_ATTENDU  # les seeds eux-mêmes donnent 576
+    assert len(attendu) == NB_LIGNES_ATTENDU  # les sources brutes elles-mêmes
     rows = db_session.execute(
         text(
             """

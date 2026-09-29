@@ -7,6 +7,23 @@ le projet suit le versionnement sémantique.
 
 ### Ajouté
 
+- Jalon 3 — **grandeurs dérivées sur tout le territoire** (ADR-0017) : les 7
+  écarts inter-sources (migration 0028, 186 816 lignes) et la fraction diffuse
+  NASA (migration 0029, 36 140 lignes) étendus aux 139 localités des lots ;
+  chaque grandeur couvre désormais 142 localités. Constats : l'écart DNI moyen
+  est positif dans les 142 localités pour les 3 sources comparées (NASA aberrant
+  bas du DNI à l'échelle nationale) ; les désaccords se creusent vers la côte ;
+  la fraction diffuse va de 0,44 (Minignan) à 0,56 (La Mé).
+
+### Modifié
+
+- **Tests ~10 fois plus rapides** (~4 min 40 → ~26 s), sans perte de
+  couverture : `ANALYZE` après les insertions massives (0028-0029) et tests de
+  cohérence DHI ≤ GHI réécrits sans auto-jointure. La cause mesurée était un
+  plan de requête dégénéré faute de statistiques, pas la comparaison intégrale.
+- **Fraction diffuse annuelle reproductible au bit près** (0024, 0029) : sommes
+  en `numeric`, indépendantes de l'ordre d'agrégation (écart antérieur de
+  3·10⁻¹⁶ selon l'exécution).
 - Jalon 2 — **couverture nationale, lot départements** (ADR-0015, migration
   0027) : les 108 départements non pilotes aux 4 sources, 1080 séries,
   235 872 mesures ; avec les 3 pilotes, les 111 départements sont couverts
