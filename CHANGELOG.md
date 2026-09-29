@@ -7,6 +7,10 @@ le projet suit le versionnement sémantique.
 
 ### Ajouté
 
+- **Mise en garde ERA5 dans les données** (migration 0033, ADR-0018) : le saut
+  probable du produit PVGIS-ERA5 en 2021 est signalé dans la note publique des
+  568 séries ERA5 (brutes GHI et DNI, écarts ERA5 − NASA, 142 localités).
+  Métadonnées seulement.
 - Jalon 2/3 — **extension temporelle 2021-2025** (ADR-0018, migrations
   0030-0032) : les séries déjà gravées sont prolongées sous les mêmes codes,
   jusqu'à la dernière année servie par chaque source — NASA POWER et CAMS 2025,
