@@ -27,7 +27,9 @@ Couverture : PVGIS-ERA5 démarre en 2005 ; on grave la fenêtre commune aux
 autres sources, soit **2005-2020** (192 mois).
 
 Usage : ``uv run python scripts/ingest_pvgis_era5_mensuel.py`` ; ``--lot regions``
-pour un lot national (CSV gzip ``seeds/donnees/``, ADR-0015).
+pour un lot national (CSV gzip ``seeds/donnees/``, ADR-0015) ; ``--extension`` pour
+prolonger jusqu'en 2023 (dernière année PVGIS) les séries déjà gravées aux 142
+localités (ADR-0018).
 (mettre ``SSL_CERT_FILE`` si un proxy TLS d'entreprise intercepte la sortie).
 """
 
@@ -44,7 +46,13 @@ from pathlib import Path
 from typing import Any
 
 from kuma_data_core.db.seeds.localites_civ_seed_data import LOCALITES_SEED
-from kuma_data_core.db.seeds.lots_civ import CONTRATS_ERA5, points_lot
+from kuma_data_core.db.seeds.lots_civ import (
+    CONTRATS_ERA5,
+    LOT_EXTENSION,
+    contrat_extension,
+    points_lot,
+    points_nationaux,
+)
 from kuma_data_core.db.seeds.series_csv import ecrire_series
 
 SOURCE_CODE = "era5_pvgis"
@@ -197,6 +205,28 @@ def main_lot(lot: str) -> None:
         print(f"{grandeur['code']}: {len(points)} séries -> {cible.name}")
 
 
+def main_extension() -> None:
+    """Extension 2021 → dernière année PVGIS des séries déjà gravées (ADR-0018)."""
+    global ANNEE_DEBUT, ANNEE_FIN
+    contrats = {g["code"]: contrat_extension(CONTRATS_ERA5[g["code"]]) for g in GRANDEURS}
+    ANNEE_DEBUT, ANNEE_FIN = contrats["ghi"].annee_debut, contrats["ghi"].annee_fin
+    points = points_nationaux()
+    par_grandeur: dict[str, list[tuple[str, float, float, list[tuple[int, int, float]]]]] = {
+        g["code"]: [] for g in GRANDEURS
+    }
+    for code, _, lat, lon in points:
+        brut = _fetch(lat, lon)
+        for grandeur in GRANDEURS:
+            par_grandeur[grandeur["code"]].append(
+                (code, lat, lon, _mesures(brut, grandeur["colonne"]))
+            )
+    for grandeur in GRANDEURS:
+        cible = ecrire_series(
+            contrats[grandeur["code"]], LOT_EXTENSION, par_grandeur[grandeur["code"]]
+        )
+        print(f"{grandeur['code']}: {len(points)} séries -> {cible.name}")
+
+
 def _dq(valeur: str) -> str:
     """Chaîne littérale en guillemets doubles (style ruff), unicode conservé."""
     return '"' + valeur.replace("\\", "\\\\").replace('"', '\\"') + '"'
@@ -261,8 +291,13 @@ del _s, _annee, _mois, _valeur, _codes, _ATTENDU
 if __name__ == "__main__":
     parseur = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parseur.add_argument("--lot", help="lot national (ex. regions) ; défaut : 3 points pilotes")
+    parseur.add_argument(
+        "--extension", action="store_true", help="prolonger 2021-2023 (142 localités)"
+    )
     args = parseur.parse_args()
-    if args.lot:
+    if args.extension:
+        main_extension()
+    elif args.lot:
         main_lot(args.lot)
     else:
         main()

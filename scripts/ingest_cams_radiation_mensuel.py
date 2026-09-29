@@ -38,6 +38,10 @@ Usage : ``ADS_API_KEY=... uv run --with cdsapi python scripts/ingest_cams_radiat
 (``seeds/donnees/cams_<grandeur>_mensuel_<lot>.csv.gz``) au lieu des modules
 Python. Requêtes ADS en parallèle ; les CSV bruts sont mis en cache
 (``--cache``) pour reprendre après une interruption sans tout redemander.
+
+**Extension 2021-2025** (ADR-0018) : ``--extension`` interroge les 142 localités
+(pilotes + lots) sur 2021-2025 et écrit ``cams_<grandeur>_mensuel_ext_2021_2025.csv.gz``
+(mêmes codes de série que les séries déjà gravées, qu'elle prolonge).
 """
 
 from __future__ import annotations
@@ -54,7 +58,13 @@ from typing import Any
 import cdsapi  # type: ignore[import-untyped]
 
 from kuma_data_core.db.seeds.localites_civ_seed_data import LOCALITES_SEED
-from kuma_data_core.db.seeds.lots_civ import CONTRATS_CAMS, points_lot
+from kuma_data_core.db.seeds.lots_civ import (
+    CONTRATS_CAMS,
+    LOT_EXTENSION,
+    contrat_extension,
+    points_lot,
+    points_nationaux,
+)
 from kuma_data_core.db.seeds.series_csv import ecrire_series
 
 DATASET = "cams-solar-radiation-timeseries"
@@ -206,9 +216,27 @@ def _telecharger_en_cache(lat: float, lon: float, cache: Path) -> Path:
     return chemin
 
 
+def main_extension(cache: Path, paralleles: int) -> None:
+    """Extension 2021-2025 des séries déjà gravées, aux 142 localités (ADR-0018)."""
+    global ANNEE_DEBUT, ANNEE_FIN
+    contrats = {g: contrat_extension(CONTRATS_CAMS[g]) for g in GRANDEURS}
+    ANNEE_DEBUT = contrats["ghi"].annee_debut
+    ANNEE_FIN = contrats["ghi"].annee_fin
+    _telecharger_et_ecrire(points_nationaux(), cache, paralleles, contrats, LOT_EXTENSION)
+
+
 def main_lot(lot: str, cache: Path, paralleles: int) -> None:
     """Lot national : télécharge en parallèle, valide, écrit les CSV gzip (ADR-0015)."""
-    points = points_lot(lot)
+    _telecharger_et_ecrire(points_lot(lot), cache, paralleles, CONTRATS_CAMS, lot)
+
+
+def _telecharger_et_ecrire(
+    points: list[tuple[str, str, float, float]],
+    cache: Path,
+    paralleles: int,
+    contrats: dict[str, Any],
+    lot: str,
+) -> None:
     cache.mkdir(parents=True, exist_ok=True)
     attendu = (ANNEE_FIN - ANNEE_DEBUT + 1) * 12
 
@@ -227,7 +255,7 @@ def main_lot(lot: str, cache: Path, paralleles: int) -> None:
             if len(m) != attendu:
                 raise SystemExit(f"{code}/{grandeur} : {len(m)} mois, {attendu} attendus")
             series.append((code, lat, lon, m))
-        cible = ecrire_series(CONTRATS_CAMS[grandeur], lot, series)
+        cible = ecrire_series(contrats[grandeur], lot, series)
         print(f"{grandeur}: {len(series)} séries -> {cible.name}")
 
 
@@ -304,8 +332,13 @@ if __name__ == "__main__":
     parseur.add_argument("--lot", help="lot national (ex. regions) ; défaut : 3 points pilotes")
     parseur.add_argument("--cache", type=Path, default=Path(".cache/cams"))
     parseur.add_argument("--paralleles", type=int, default=4)
+    parseur.add_argument(
+        "--extension", action="store_true", help="prolonger 2021-2025 (142 localités)"
+    )
     args = parseur.parse_args()
-    if args.lot:
+    if args.extension:
+        main_extension(args.cache, args.paralleles)
+    elif args.lot:
         main_lot(args.lot, args.cache, args.paralleles)
     else:
         main()

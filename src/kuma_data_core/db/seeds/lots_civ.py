@@ -16,7 +16,7 @@ période, conversion) ; seules les localités changent.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from kuma_data_core.db.seeds.localites_civ_seed_data import LOCALITES_SEED
 from kuma_data_core.db.seeds.series_csv import ContratSerie
@@ -206,3 +206,47 @@ ECARTS_INTER_SOURCES: tuple[EcartInterSource, ...] = (
 def points_lots_mensuels() -> list[tuple[str, str, float, float]]:
     """Les 139 localités des lots mensuels (31 régions + 108 départements)."""
     return sorted(points_lot("regions") + points_lot("departements"))
+
+
+# --- Extension temporelle 2021-2025 (ADR-0018) ---------------------------------------
+
+LOT_EXTENSION: str = "ext_2021_2025"
+"""Suffixe des CSV d'extension : années 2021+ des séries déjà gravées (mêmes codes)."""
+
+ANNEE_DEBUT_EXTENSION: int = 2021
+
+# Dernière année servie par chaque source (sondage du 2026-09-30) : PVGIS s'arrête
+# en 2023 ; NASA POWER et CAMS couvrent 2025 en entier.
+FIN_EXTENSION: dict[str, int] = {
+    "nasa_power": 2025,
+    "cams_radiation": 2025,
+    "sarah3_monthly": 2023,
+    "era5_pvgis": 2023,
+}
+
+
+def contrat_extension(contrat: ContratSerie) -> ContratSerie:
+    """Même contrat (source, préfixe, bornes), période 2021 → fin servie par la source."""
+    return replace(
+        contrat,
+        annee_debut=ANNEE_DEBUT_EXTENSION,
+        annee_fin=FIN_EXTENSION[contrat.source_code],
+    )
+
+
+CONTRATS_EXTENSION: tuple[ContratSerie, ...] = tuple(
+    contrat_extension(c) for c in CONTRATS_MENSUELS
+)
+CONTRATS_NASA_JOURNALIERS_EXTENSION: dict[str, ContratSerie] = {
+    g: contrat_extension(c) for g, c in CONTRATS_NASA_JOURNALIERS.items()
+}
+
+
+def points_nationaux() -> list[tuple[str, str, float, float]]:
+    """Les 142 localités des séries mensuelles : 3 pilotes + 31 régions + 108 départements."""
+    pilotes = [
+        (e["code"], e["nom"], float(e["latitude"]), float(e["longitude"]))
+        for e in LOCALITES_SEED
+        if e["code"] in POINTS_PILOTES
+    ]
+    return sorted(pilotes + points_lots_mensuels())
