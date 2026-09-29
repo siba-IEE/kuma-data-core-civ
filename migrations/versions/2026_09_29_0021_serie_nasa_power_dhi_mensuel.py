@@ -6,10 +6,16 @@ Create Date: 2026-09-29
 
 **Première série DHI** de l'instance (ADR-0013) : irradiation diffuse horizontale
 mensuelle **NASA POWER** (paramètre ``ALLSKY_SFC_SW_DIFF``, communauté ``RE``),
-aux 3 points, **1991-2020** (même climatologie que le GHI NASA, 0008).
+aux 3 points, **2001-2020** (même couverture que le DNI NASA, 0009).
 
-Grave **3 séries** brutes (``series_metadonnees``) et **1080 mesures**
-(``mesures_ressource_mensuelles``, 360 par série), méthode
+**Pourquoi pas 1991-2000** : NASA POWER sert le DHI avant 2001, mais en
+**rupture** avec la suite — saut de ~3,8 à ~2,55 kWh/m²/jour entre 2000 et 2001
+aux 3 points, alors que le GHI est continu, et DHI > GHI (physiquement
+impossible) sur 10 mois à Yamoussoukro. Ces années ne sont pas gravées
+(ADR-0013, section « Rupture 2000/2001 »).
+
+Grave **3 séries** brutes (``series_metadonnees``) et **720 mesures**
+(``mesures_ressource_mensuelles``, 240 par série), méthode
 ``modele_satellitaire``, confiance **B**. NASA POWER sert directement la
 moyenne journalière du mois en kWh/m²/jour : **aucune conversion**.
 
@@ -41,12 +47,13 @@ depends_on: str | Sequence[str] | None = None
 
 SOURCE_ID: int = 1
 SOURCE_CODE: str = "nasa_power"
-NB_MESURES_ATTENDU: int = 1080  # 3 points × 360 mois (1991-2020)
+NB_MESURES_ATTENDU: int = 720  # 3 points × 240 mois (2001-2020)
 _CODES_SERIES: tuple[str, ...] = tuple(s["code"] for s in seed.SERIES)
 
 _NOTE_PUBLIQUE: str = (
     "DHI mensuel NASA POWER (ALLSKY_SFC_SW_DIFF, composante diffuse CERES), "
-    "moyenne journalière du mois en kWh/m²/jour, 1991-2020. Confiance B "
+    "moyenne journalière du mois en kWh/m²/jour, 2001-2020 (rupture NASA avant 2001). "
+    "Confiance B "
     "(satellite). Référence (dénominateur) de l'écart DHI inter-source, "
     "par convention comme pour le GHI et le DNI (ADR-0013)."
 )

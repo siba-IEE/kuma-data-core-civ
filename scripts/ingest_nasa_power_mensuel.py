@@ -10,12 +10,14 @@ au réseau — cf. README). Grandeurs couvertes :
   -> ``series_nasa_power_ghi_mensuel_civ.py`` ;
 - ``dni`` (``ALLSKY_SFC_SW_DNI``), 2001-2020
   -> ``series_nasa_power_dni_mensuel_civ.py`` ;
-- ``dhi`` (``ALLSKY_SFC_SW_DIFF``), 1991-2020
+- ``dhi`` (``ALLSKY_SFC_SW_DIFF``), 2001-2020
   -> ``series_nasa_power_dhi_mensuel_civ.py`` (ADR-0013).
 
 La **période diffère par grandeur** : NASA POWER ne fournit le DNI qu'à partir
 de 2001 (avant, la série est remplie de -999). Le garde-fou anti-remplissage
-échoue explicitement plutôt que de graver un trou.
+échoue explicitement plutôt que de graver un trou. Le DHI est servi avant 2001
+mais **en rupture** avec la suite (saut de ~3,8 à ~2,55 kWh/m²/jour entre 2000
+et 2001, DHI > GHI certains mois) : on ne grave que 2001-2020 (ADR-0013).
 
 Contrat de série : ``docs/decisions/0007-serie-climatologie-nasa-power.md``.
 
@@ -75,7 +77,7 @@ GRANDEURS: tuple[dict[str, Any], ...] = (
         "parametre": "ALLSKY_SFC_SW_DIFF",
         "label": "DHI",
         "borne_max": 6.0,
-        "annee_debut": 1991,
+        "annee_debut": 2001,  # rupture 2000/2001 du DHI NASA (ADR-0013)
         "annee_fin": 2020,
     },
 )

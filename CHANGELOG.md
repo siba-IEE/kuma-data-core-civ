@@ -7,8 +7,14 @@ le projet suit le versionnement sémantique.
 
 ### Ajouté
 
+- Jalon 3 (grandeurs) — **fraction diffuse** NASA POWER (ADR-0014, migration
+  0024) : `fraction_diffuse` (id 3, formule de la fiche, version 1) matérialisée
+  aux 3 points, 2001-2020, 720 lignes mensuelles et 60 annuelles, confiance B.
+  Calculée en base depuis le mensuel NASA (Σ DHI / Σ GHI sur les jours de la
+  période) ; équivalence avec le calcul journalier vérifiée à 4·10⁻⁵ près
+  (Abidjan 2005). Annuel 0,48 (Korhogo) à 0,55 (Abidjan, Yamoussoukro).
 - Jalon 2/3 — **DHI** (ADR-0013) : irradiation diffuse horizontale mensuelle
-  **NASA POWER** 1991-2020 (`ALLSKY_SFC_SW_DIFF`, 1080 mesures, migration 0021)
+  **NASA POWER** 2001-2020 (`ALLSKY_SFC_SW_DIFF`, 720 mesures, migration 0021)
   et **CAMS Radiation** 2005-2020 (colonne `DHI` du CSV ADS, 576 mesures,
   migration 0022), confiance B, sources existantes. Premier écart diffus
   `ecart_relatif_dhi_cams_nasa` (0023, NASA au dénominateur, 576 lignes). Les
@@ -17,7 +23,10 @@ le projet suit le versionnement sémantique.
   ratios mensuels +7,4 % Abidjan, +6,4 % Yamoussoukro, −2,8 % Korhogo, contre
   +31 à +78 % pour le DNI) — le désaccord inter-source porte surtout sur la
   composante directe. PVGIS ne sert que le ratio `Kd` arrondi au centième :
-  non ingéré (DHI reconstruit, erreur d'arrondi jusqu'à ~1,3 %).
+  non ingéré (DHI reconstruit, erreur d'arrondi jusqu'à ~1,3 %). **Correction** :
+  le DHI NASA 1991-2000, d'abord gravé, est en rupture avec 2001+ (saut d'un
+  tiers entre 2000 et 2001, DHI > GHI sur 10 mois) ; 0021 ne grave plus que
+  2001-2020, et un test `DHI ≤ GHI` par source garde la régression.
 - Jalon 2/3 — **triangulation DNI à 4 sources** (ADR-0012) : DNI mensuel
   **SARAH-3** et **ERA5** via PVGIS (champ `Hb(n)_m`, option `mr_dni=1` de
   `MRcalc`), 2005-2020 aux 3 points — migrations 0017 et 0018, 576 mesures
