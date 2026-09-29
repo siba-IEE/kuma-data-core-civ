@@ -24,12 +24,14 @@ estimation.
 Couverture : SARAH-3 via PVGIS démarre en 2005 ; on grave le recouvrement avec
 le GHI NASA POWER (fenêtre commune), soit **2005-2020** (192 mois).
 
-Usage : ``uv run python scripts/ingest_pvgis_sarah3_mensuel.py``
+Usage : ``uv run python scripts/ingest_pvgis_sarah3_mensuel.py`` ; ``--lot regions``
+pour un lot national (CSV gzip ``seeds/donnees/``, ADR-0015).
 (mettre ``SSL_CERT_FILE`` si un proxy TLS d'entreprise intercepte la sortie).
 """
 
 from __future__ import annotations
 
+import argparse
 import calendar
 import json
 import os
@@ -40,6 +42,8 @@ from pathlib import Path
 from typing import Any
 
 from kuma_data_core.db.seeds.localites_civ_seed_data import LOCALITES_SEED
+from kuma_data_core.db.seeds.lots_civ import CONTRATS_SARAH3, points_lot
+from kuma_data_core.db.seeds.series_csv import ecrire_series
 
 SOURCE_CODE = "sarah3_monthly"
 GRANULARITE = "mensuel"
@@ -171,6 +175,24 @@ def main() -> None:
         print(f"Seed régénéré : {cible}")
 
 
+def main_lot(lot: str) -> None:
+    """Lot national : une requête par point (GHI + DNI), sortie CSV gzip (ADR-0015)."""
+    points = points_lot(lot)
+    par_grandeur: dict[str, list[tuple[str, float, float, list[tuple[int, int, float]]]]] = {
+        g["code"]: [] for g in GRANDEURS
+    }
+    for code, _, lat, lon in points:
+        brut = _fetch(lat, lon)
+        for grandeur in GRANDEURS:
+            par_grandeur[grandeur["code"]].append(
+                (code, lat, lon, _mesures(brut, grandeur["colonne"]))
+            )
+    for grandeur in GRANDEURS:
+        contrat = CONTRATS_SARAH3[grandeur["code"]]
+        cible = ecrire_series(contrat, lot, par_grandeur[grandeur["code"]])
+        print(f"{grandeur['code']}: {len(points)} séries -> {cible.name}")
+
+
 def _dq(valeur: str) -> str:
     """Chaîne littérale en guillemets doubles (style ruff), unicode conservé."""
     return '"' + valeur.replace("\\", "\\\\").replace('"', '\\"') + '"'
@@ -233,4 +255,10 @@ del _s, _annee, _mois, _valeur, _codes, _ATTENDU
 
 
 if __name__ == "__main__":
-    main()
+    parseur = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parseur.add_argument("--lot", help="lot national (ex. regions) ; défaut : 3 points pilotes")
+    args = parseur.parse_args()
+    if args.lot:
+        main_lot(args.lot)
+    else:
+        main()

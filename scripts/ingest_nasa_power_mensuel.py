@@ -27,12 +27,14 @@ Sémantique NASA POWER mensuel :
 - la clé ``AAAA13`` est la **moyenne annuelle** : ignorée (on ne stocke que
   12 mois/an ; la table impose ``mois BETWEEN 1 AND 12``).
 
-Usage : ``uv run python scripts/ingest_nasa_power_mensuel.py``
+Usage : ``uv run python scripts/ingest_nasa_power_mensuel.py`` ; ``--lot regions``
+pour un lot national (CSV gzip ``seeds/donnees/``, ADR-0015).
 (mettre ``SSL_CERT_FILE`` si un proxy TLS d'entreprise intercepte la sortie).
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import ssl
@@ -42,6 +44,8 @@ from pathlib import Path
 from typing import Any
 
 from kuma_data_core.db.seeds.localites_civ_seed_data import LOCALITES_SEED
+from kuma_data_core.db.seeds.lots_civ import CONTRATS_NASA, points_lot
+from kuma_data_core.db.seeds.series_csv import ecrire_series
 
 # --- Contrat partagé (identique pour toutes les grandeurs) --------------------
 SOURCE_CODE = "nasa_power"
@@ -158,6 +162,22 @@ def main() -> None:
         print(f"Seed régénéré : {cible}")
 
 
+def main_lot(lot: str) -> None:
+    """Lot national : mêmes requêtes et garde-fous, sortie CSV gzip (ADR-0015)."""
+    points = points_lot(lot)
+    for grandeur in GRANDEURS:
+        contrat = CONTRATS_NASA[grandeur["code"]]
+        debut, fin = grandeur["annee_debut"], grandeur["annee_fin"]
+        if (contrat.annee_debut, contrat.annee_fin) != (debut, fin):
+            raise SystemExit(f"Contrat {contrat.prefixe_code} ≠ grandeur {grandeur['code']}")
+        series = []
+        for code, _, lat, lon in points:
+            mesures = _mesures(_fetch(grandeur["parametre"], lat, lon, debut, fin), debut, fin)
+            series.append((code, lat, lon, mesures))
+        cible = ecrire_series(contrat, lot, series)
+        print(f"{grandeur['code']}: {len(series)} séries -> {cible.name}")
+
+
 def _dq(valeur: str) -> str:
     """Chaîne littérale en guillemets doubles (style ruff), unicode conservé."""
     return '"' + valeur.replace("\\", "\\\\").replace('"', '\\"') + '"'
@@ -229,4 +249,10 @@ del _s, _annee, _mois, _valeur, _codes, _ATTENDU
 
 
 if __name__ == "__main__":
-    main()
+    parseur = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parseur.add_argument("--lot", help="lot national (ex. regions) ; défaut : 3 points pilotes")
+    args = parseur.parse_args()
+    if args.lot:
+        main_lot(args.lot)
+    else:
+        main()

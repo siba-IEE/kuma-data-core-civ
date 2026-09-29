@@ -32,20 +32,30 @@ grave **2005-2020** (fenêtre commune aux autres sources GHI).
 **Conversion** vers ``kwh_par_m2_jour`` : ``(Wh/m²/mois ÷ 1000) ÷ jours du mois``.
 
 Usage : ``ADS_API_KEY=... uv run --with cdsapi python scripts/ingest_cams_radiation_mensuel.py``
+
+**Lots nationaux** (ADR-0015) : ``--lot regions`` interroge les localités du lot
+(``kuma_data_core.db.seeds.lots_civ``) et écrit des CSV gzip
+(``seeds/donnees/cams_<grandeur>_mensuel_<lot>.csv.gz``) au lieu des modules
+Python. Requêtes ADS en parallèle ; les CSV bruts sont mis en cache
+(``--cache``) pour reprendre après une interruption sans tout redemander.
 """
 
 from __future__ import annotations
 
+import argparse
 import calendar
 import math
 import os
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
 import cdsapi  # type: ignore[import-untyped]
 
 from kuma_data_core.db.seeds.localites_civ_seed_data import LOCALITES_SEED
+from kuma_data_core.db.seeds.lots_civ import CONTRATS_CAMS, points_lot
+from kuma_data_core.db.seeds.series_csv import ecrire_series
 
 DATASET = "cams-solar-radiation-timeseries"
 ADS_URL = "https://ads.atmosphere.copernicus.eu/api"
@@ -181,6 +191,46 @@ def main() -> None:
         print(f"Seed régénéré : series_cams_{grandeur}_mensuel_civ.py")
 
 
+def _telecharger_en_cache(lat: float, lon: float, cache: Path) -> Path:
+    """Télécharge le CSV CAMS d'un point, sauf s'il est déjà valide en cache."""
+    chemin = cache / f"cams_{lat:.4f}_{lon:.4f}.csv"
+    if chemin.exists():
+        try:
+            _extraire(chemin)
+            return chemin
+        except (SystemExit, ValueError):
+            chemin.unlink()  # cache corrompu ou incomplet : on redemande
+    with tempfile.TemporaryDirectory(dir=cache) as tmp:
+        partiel = _telecharger(_client(), lat, lon, Path(tmp))
+        partiel.replace(chemin)
+    return chemin
+
+
+def main_lot(lot: str, cache: Path, paralleles: int) -> None:
+    """Lot national : télécharge en parallèle, valide, écrit les CSV gzip (ADR-0015)."""
+    points = points_lot(lot)
+    cache.mkdir(parents=True, exist_ok=True)
+    attendu = (ANNEE_FIN - ANNEE_DEBUT + 1) * 12
+
+    def traiter(point: tuple[str, str, float, float]) -> tuple[str, float, float, Any]:
+        code, _, lat, lon = point
+        mesures = _extraire(_telecharger_en_cache(lat, lon, cache))
+        print(f"{code}: téléchargé", flush=True)
+        return code, lat, lon, mesures
+
+    with ThreadPoolExecutor(max_workers=paralleles) as pool:
+        resultats = list(pool.map(traiter, points))
+    for grandeur in GRANDEURS:
+        series = []
+        for code, lat, lon, mesures in resultats:
+            m = mesures[grandeur]
+            if len(m) != attendu:
+                raise SystemExit(f"{code}/{grandeur} : {len(m)} mois, {attendu} attendus")
+            series.append((code, lat, lon, m))
+        cible = ecrire_series(CONTRATS_CAMS[grandeur], lot, series)
+        print(f"{grandeur}: {len(series)} séries -> {cible.name}")
+
+
 def _dq(valeur: str) -> str:
     """Chaîne littérale en guillemets doubles (style ruff), unicode conservé."""
     return '"' + valeur.replace("\\", "\\\\").replace('"', '\\"') + '"'
@@ -250,4 +300,12 @@ del _s, _annee, _mois, _valeur, _codes, _ATTENDU
 
 
 if __name__ == "__main__":
-    main()
+    parseur = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parseur.add_argument("--lot", help="lot national (ex. regions) ; défaut : 3 points pilotes")
+    parseur.add_argument("--cache", type=Path, default=Path(".cache/cams"))
+    parseur.add_argument("--paralleles", type=int, default=4)
+    args = parseur.parse_args()
+    if args.lot:
+        main_lot(args.lot, args.cache, args.paralleles)
+    else:
+        main()
