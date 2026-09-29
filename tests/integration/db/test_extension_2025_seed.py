@@ -5,7 +5,8 @@ dernière année servie par chaque source — NASA POWER et CAMS jusqu'en 2025,
 SARAH-3 et ERA5 jusqu'en 2023. Vérifie, pour toutes les séries concernées
 (brutes mensuelles, journalières NASA, écarts, fraction diffuse) : fin de
 période, libellé « (AAAA-fin) », phrase ajoutée à la note publique, et absence
-de toute valeur au-delà de la fin servie.
+de toute valeur au-delà de la fin servie. Vérifie aussi la mise en garde sur le
+saut ERA5 de 2021 (migration 0033), portée par les notes des seules séries ERA5.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from kuma_data_core.db.seeds.lots_civ import (
+    CONTRATS_ERA5,
     CONTRATS_EXTENSION,
     CONTRATS_NASA_JOURNALIERS_EXTENSION,
     ECARTS_INTER_SOURCES,
@@ -42,7 +44,7 @@ def _verifier_series(db_session: Session, codes: list[str], fin: int) -> None:
     for r in rows:
         assert str(r.periode_fin) == f"{fin}-12-31", r.code
         assert r.libelle.endswith(f"-{fin})"), r.libelle
-        assert r.note_publique.endswith(f" Prolongée jusqu'en {fin} (ADR-0018)."), r.code
+        assert f" Prolongée jusqu'en {fin} (ADR-0018)." in r.note_publique, r.code
 
 
 def _id(contrat: ContratSerie) -> str:
@@ -104,3 +106,24 @@ def test_fraction_diffuse_prolongee(db_session: Session) -> None:
     _verifier_series(
         db_session, [f"fraction_diffuse_nasa_power_{code}" for code in _LOCALITES], 2025
     )
+
+
+def test_mise_en_garde_era5(db_session: Session) -> None:
+    """Le saut ERA5 de 2021 est signalé sur les 568 séries ERA5, et sur elles seules."""
+    attendues = {c.code_serie(code) for c in CONTRATS_ERA5.values() for code in _LOCALITES} | {
+        e.code_serie(code)
+        for e in ECARTS_INTER_SOURCES
+        if e.source_comparee == "era5_pvgis"
+        for code in _LOCALITES
+    }
+    assert len(attendues) == 568
+    annotees = {
+        row.code
+        for row in db_session.execute(
+            text(
+                "SELECT code FROM series_metadonnees "
+                "WHERE strpos(note_publique, 'saut probable du produit PVGIS-ERA5 en 2021') > 0"
+            )
+        ).all()
+    }
+    assert annotees == attendues
