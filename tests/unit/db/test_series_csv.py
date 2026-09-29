@@ -79,3 +79,35 @@ def test_rejet_doublon_et_localite_inconnue(tmp_path: Path) -> None:
     chemin.write_bytes(gzip.compress(("\n".join(inconnue) + "\n").encode()))
     with pytest.raises(ValueError, match="inconnue"):
         lire_series(_CONTRAT, "test")
+
+
+def test_journalier_aller_retour_et_completude() -> None:
+    """Format journalier : relecture triée, complétude exigée sur tous les jours civils."""
+    from datetime import date, timedelta
+
+    from kuma_data_core.db.seeds.series_csv import (
+        ecrire_series_journalieres,
+        lire_series_journalieres,
+        nb_jours,
+    )
+
+    contrat = ContratSerie(
+        source_code="nasa_power",
+        source_id=1,
+        source_libelle="NASA POWER",
+        prefixe_code="nasa_power_ghi_journalier",
+        grandeur_code="ghi",
+        methode_collecte="modele_satellitaire",
+        annee_debut=2020,
+        annee_fin=2020,
+        borne_max=9.0,
+        granularite="journalier",
+    )
+    jours = [date(2020, 1, 1) + timedelta(days=i) for i in range(nb_jours(contrat))]
+    assert len(jours) == 366  # 2020 bissextile
+    mesures = [(j, 5.0) for j in reversed(jours)]
+    ecrire_series_journalieres(contrat, "test", [(*_POINT, mesures)])
+    (serie,) = lire_series_journalieres(contrat, "test")
+    assert serie["mesures"][0] == (date(2020, 1, 1), 5.0) and len(serie["mesures"]) == 366
+    with pytest.raises(ValueError, match="jours"):
+        ecrire_series_journalieres(contrat, "test", [(*_POINT, mesures[1:])])

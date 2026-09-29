@@ -1,4 +1,4 @@
-"""Seeds de séries mensuelles volumineuses en CSV compressé (ADR-0015).
+"""Seeds de séries volumineuses (mensuelles et journalières) en CSV compressé (ADR-0015).
 
 Au-delà des 3 points pilotes, les seeds en modules Python (``series_*_civ.py``)
 deviennent trop lourds (dizaines de milliers de tuples). Les lots de couverture
@@ -23,6 +23,7 @@ import csv
 import gzip
 import io
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -136,6 +137,100 @@ def lire_series(contrat: ContratSerie, lot: str) -> list[dict[str, Any]]:
                 "code": contrat.code_serie(code),
                 "libelle": (
                     f"{contrat.grandeur_code.upper()} mensuel {contrat.source_libelle} — "
+                    f"{noms[code]} ({contrat.annee_debut}-{contrat.annee_fin})"
+                ),
+                "localite_code": code,
+                "latitude": par_loc[code]["latitude"],
+                "longitude": par_loc[code]["longitude"],
+                "mesures": mesures,
+            }
+        )
+    return sortie
+
+
+# --- Séries journalières (lot 3, table ``mesures_ressource``) ---------------------
+
+COLONNES_JOURNALIERES: tuple[str, ...] = (
+    "localite_code",
+    "latitude",
+    "longitude",
+    "date",
+    "valeur",
+)
+
+
+def nb_jours(contrat: ContratSerie) -> int:
+    """Nombre de jours civils de la période du contrat (complétude journalière)."""
+    return (date(contrat.annee_fin, 12, 31) - date(contrat.annee_debut, 1, 1)).days + 1
+
+
+def ecrire_series_journalieres(
+    contrat: ContratSerie,
+    lot: str,
+    series: list[tuple[str, float, float, list[tuple[date, float]]]],
+) -> Path:
+    """Écrit ``(localite_code, lat, lon, [(date, valeur)])`` en CSV gzip déterministe."""
+    lignes = sorted(
+        (code, lat, lon, jour.isoformat(), round(valeur, 4))
+        for code, lat, lon, mesures in series
+        for jour, valeur in mesures
+    )
+    tampon = io.StringIO()
+    ecrivain = csv.writer(tampon, lineterminator="\n")
+    ecrivain.writerow(COLONNES_JOURNALIERES)
+    ecrivain.writerows(lignes)
+    DOSSIER_DONNEES.mkdir(parents=True, exist_ok=True)
+    cible = DOSSIER_DONNEES / contrat.nom_fichier(lot)
+    with (
+        cible.open("wb") as brut,
+        gzip.GzipFile(filename="", mode="wb", fileobj=brut, mtime=0, compresslevel=9) as gz,
+    ):
+        gz.write(tampon.getvalue().encode("utf-8"))
+    lire_series_journalieres(contrat, lot)  # acceptée seulement si la relecture valide
+    return cible
+
+
+def lire_series_journalieres(contrat: ContratSerie, lot: str) -> list[dict[str, Any]]:
+    """Relit un lot journalier : séries avec ``mesures`` [(date, valeur)] triées.
+
+    Valide en-tête, période, bornes, doublons, complétude (tous les jours civils
+    du contrat, par localité) et localités du référentiel ; ``ValueError`` sinon.
+    """
+    chemin = DOSSIER_DONNEES / contrat.nom_fichier(lot)
+    debut, fin = date(contrat.annee_debut, 1, 1), date(contrat.annee_fin, 12, 31)
+    with gzip.open(chemin, "rt", encoding="utf-8", newline="") as f:
+        lecteur = csv.reader(f)
+        entete = tuple(next(lecteur))
+        if entete != COLONNES_JOURNALIERES:
+            raise ValueError(f"{chemin.name} : en-tête {entete!r} inattendu.")
+        par_loc: dict[str, dict[str, Any]] = {}
+        for code, lat, lon, jour_s, valeur_s in lecteur:
+            jour, valeur = date.fromisoformat(jour_s), float(valeur_s)
+            if not debut <= jour <= fin:
+                raise ValueError(f"{chemin.name} : période hors contrat {code} {jour}.")
+            if not (0.0 <= valeur <= contrat.borne_max):
+                raise ValueError(f"{chemin.name} : valeur hors bornes {code} {jour}.")
+            serie = par_loc.setdefault(
+                code, {"latitude": float(lat), "longitude": float(lon), "mesures": {}}
+            )
+            if jour in serie["mesures"]:
+                raise ValueError(f"{chemin.name} : doublon {code} {jour}.")
+            serie["mesures"][jour] = valeur
+
+    noms = {e["code"]: e["nom"] for e in LOCALITES_SEED}
+    attendu = nb_jours(contrat)
+    sortie: list[dict[str, Any]] = []
+    for code in sorted(par_loc):
+        if code not in noms:
+            raise ValueError(f"{chemin.name} : localité inconnue {code!r}.")
+        mesures = sorted(par_loc[code]["mesures"].items())
+        if len(mesures) != attendu:
+            raise ValueError(f"{chemin.name} : {code} a {len(mesures)} jours, {attendu} attendus.")
+        sortie.append(
+            {
+                "code": contrat.code_serie(code),
+                "libelle": (
+                    f"{contrat.grandeur_code.upper()} journalier {contrat.source_libelle} — "
                     f"{noms[code]} ({contrat.annee_debut}-{contrat.annee_fin})"
                 ),
                 "localite_code": code,

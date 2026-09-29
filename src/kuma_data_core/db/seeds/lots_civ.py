@@ -112,3 +112,47 @@ CONTRATS_MENSUELS: tuple[ContratSerie, ...] = (
     *CONTRATS_ERA5.values(),
     *CONTRATS_CAMS.values(),
 )
+
+
+# --- Lot 3 : NASA POWER journalier (table ``mesures_ressource``) ------------------
+
+LOT_JOURNALIER: str = "pilotes_regions"
+"""Périmètre du journalier : 3 points pilotes + 31 régions (décision 2026-09-29)."""
+
+
+def points_journalier() -> list[tuple[str, str, float, float]]:
+    """Les 34 localités du lot journalier : pilotes puis régions, triées par code."""
+    pilotes = [
+        (e["code"], e["nom"], float(e["latitude"]), float(e["longitude"]))
+        for e in LOCALITES_SEED
+        if e["code"] in POINTS_PILOTES
+    ]
+    return sorted(pilotes + points_lot("regions"))
+
+
+def _nasa_jour(grandeur: str, debut: int, borne: float) -> ContratSerie:
+    return ContratSerie(
+        source_code="nasa_power",
+        source_id=1,
+        source_libelle="NASA POWER",
+        prefixe_code=f"nasa_power_{grandeur}_journalier",
+        grandeur_code=grandeur,
+        methode_collecte="modele_satellitaire",
+        annee_debut=debut,
+        annee_fin=2020,
+        borne_max=borne,
+        granularite="journalier",
+    )
+
+
+# Paramètre NASA POWER de chaque grandeur, et contrat (mêmes périodes que le mensuel).
+PARAMETRES_NASA: dict[str, str] = {
+    "ghi": "ALLSKY_SFC_SW_DWN",
+    "dni": "ALLSKY_SFC_SW_DNI",
+    "dhi": "ALLSKY_SFC_SW_DIFF",
+}
+CONTRATS_NASA_JOURNALIERS: dict[str, ContratSerie] = {
+    "ghi": _nasa_jour("ghi", 1991, 9.0),  # bornes journalières plus larges que mensuelles
+    "dni": _nasa_jour("dni", 2001, 12.0),
+    "dhi": _nasa_jour("dhi", 2001, 7.0),  # rupture DHI avant 2001 (ADR-0013)
+}

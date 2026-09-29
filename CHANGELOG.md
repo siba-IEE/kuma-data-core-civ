@@ -7,6 +7,12 @@ le projet suit le versionnement sémantique.
 
 ### Ajouté
 
+- Jalon 2 — **NASA POWER journalier** (ADR-0016, migration 0026) : GHI
+  1991-2020, DNI et DHI 2001-2020 aux 3 points pilotes et 31 régions, 102
+  séries, 869 312 mesures dans `mesures_ressource`, insérées par `COPY`.
+  Seeds CSV gzip (complétude de tous les jours civils), ingesteur
+  `scripts/ingest_nasa_power_journalier.py`. Aucun jour DHI > GHI ; la moyenne
+  des jours de chaque mois redonne le mensuel NASA à 0,00017 près.
 - Jalon 2 — **couverture nationale, lot régions** (ADR-0015, migration 0025) :
   les 31 régions aux 4 sources (NASA POWER GHI/DNI/DHI, SARAH-3 et ERA5
   GHI/DNI, CAMS GHI/DNI/DHI), aux contrats des séries pilotes : 310 séries,

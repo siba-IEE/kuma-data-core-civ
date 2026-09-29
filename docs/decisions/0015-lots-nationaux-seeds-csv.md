@@ -96,7 +96,9 @@ interprétation.
 Les écarts inter-sources et la fraction diffuse restent, à ce stade, limités
 aux 3 points pilotes : leur extension aux lots est une étape distincte.
 
-## Suite prévue
+## Suite
 
-- **Lot 2** : les 108 départements non pilotes (niveau `commune`).
-- **Lot 3** : NASA POWER journalier (table `mesures_ressource`), même format CSV.
+- **Lot 3** : NASA POWER journalier aux 3 pilotes et 31 régions, même format
+  CSV — gravé en migration 0026 ([ADR-0016](0016-nasa-power-journalier.md)).
+- **Lot 2** : les 108 départements non pilotes (niveau `commune`), migration
+  0027 dès la fin de l'ingestion CAMS.
