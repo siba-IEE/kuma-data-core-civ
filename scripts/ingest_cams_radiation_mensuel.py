@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Ingesteur reproductible : GHI + DNI mensuels CAMS Radiation (2005-2020), CIV.
+"""Ingesteur reproductible : GHI, DNI et DHI mensuels CAMS Radiation (2005-2020), CIV.
 
 Télécharge l'irradiation **all-sky** mensuelle de **CAMS Radiation**
 (Heliosat-4 + McClear, ADS Copernicus) aux 3 points ivoiriens, et **régénère**
@@ -7,9 +7,12 @@ deux modules de seed que les migrations lisent hors-ligne (les migrations
 n'accèdent jamais au réseau — cf. README) :
 
 - ``src/kuma_data_core/db/seeds/series_cams_ghi_mensuel_civ.py`` (grandeur ``ghi``) ;
-- ``src/kuma_data_core/db/seeds/series_cams_dni_mensuel_civ.py`` (grandeur ``dni``).
+- ``src/kuma_data_core/db/seeds/series_cams_dni_mensuel_civ.py`` (grandeur ``dni``) ;
+- ``src/kuma_data_core/db/seeds/series_cams_dhi_mensuel_civ.py`` (grandeur ``dhi``,
+  contrat ADR-0013).
 
-Contrat de série : ``docs/decisions/0011-cams-radiation-ghi-dni-quatrieme-source.md``
+Contrats de série : ``docs/decisions/0011-cams-radiation-ghi-dni-quatrieme-source.md``
+(GHI, DNI) et ``docs/decisions/0013-dhi-nasa-cams.md`` (DHI)
 (source ``cams_radiation`` id 13, méthode ``modele_satellitaire``, confiance B).
 Recette reprise du moteur générique (`scripts/preparer_seed_cams.py`, sondage ADS
 vérifié 2026-06-16).
@@ -22,8 +25,8 @@ fois sur le compte Copernicus.
 
 **Faits API** (CAMS ``cams-solar-radiation-timeseries``) : ``sky_type=observed_cloud``
 (all-sky), ``time_step=1month`` (agrégat mensuel), CSV ``;``-séparé, en-têtes
-``#``. Colonnes **repérées par nom** dans l'en-tête : ``GHI`` (all-sky) et ``BNI``
-(all-sky = DNI), en **Wh/m² intégrés au mois**. Couverture 2004-02 → J-1 ; on
+``#``. Colonnes **repérées par nom** dans l'en-tête : ``GHI``, ``BNI`` (= DNI) et
+``DHI``, all-sky, en **Wh/m² intégrés au mois**. Couverture 2004-02 → J-1 ; on
 grave **2005-2020** (fenêtre commune aux autres sources GHI).
 
 **Conversion** vers ``kwh_par_m2_jour`` : ``(Wh/m²/mois ÷ 1000) ÷ jours du mois``.
@@ -56,7 +59,8 @@ WH_PAR_KWH = 1000.0
 POINTS: tuple[str, ...] = ("civ_dep_abidjan", "civ_dep_yamoussoukro", "civ_dep_korhogo")
 
 # Garde-fous de sanité (kWh/m²/jour, moyenne journalière du mois).
-BORNES_MAX: dict[str, float] = {"ghi": 9.0, "dni": 12.0}
+BORNES_MAX: dict[str, float] = {"ghi": 9.0, "dni": 12.0, "dhi": 6.0}
+GRANDEURS: tuple[str, ...] = ("ghi", "dni", "dhi")
 
 _SEEDS = Path(__file__).resolve().parents[1] / "src/kuma_data_core/db/seeds"
 
@@ -107,21 +111,21 @@ def _telecharger(client: cdsapi.Client, lat: float, lon: float, dossier: Path) -
 
 
 def _index_colonnes(lignes: list[str]) -> dict[str, int]:
-    """Repère les index des colonnes 'GHI' et 'BNI' (all-sky) dans l'en-tête CSV."""
+    """Repère les index des colonnes 'GHI', 'BNI' et 'DHI' (all-sky) dans l'en-tête CSV."""
     for ln in lignes:
         if "Observation period" in ln and ";GHI;" in f"{ln};":
             noms = [c.strip().lstrip("# ").strip() for c in ln.lstrip("#").split(";")]
             idx = {n: i for i, n in enumerate(noms)}
-            if "GHI" in idx and "BNI" in idx:
-                return {"ghi": idx["GHI"], "dni": idx["BNI"]}
-    raise SystemExit("En-tête CAMS introuvable (colonnes GHI/BNI non repérées).")
+            if "GHI" in idx and "BNI" in idx and "DHI" in idx:
+                return {"ghi": idx["GHI"], "dni": idx["BNI"], "dhi": idx["DHI"]}
+    raise SystemExit("En-tête CAMS introuvable (colonnes GHI/BNI/DHI non repérées).")
 
 
 def _extraire(chemin: Path) -> dict[str, list[tuple[int, int, float]]]:
-    """Extrait GHI et DNI mensuels convertis (kWh/m²/jour) depuis le CSV CAMS."""
+    """Extrait GHI, DNI et DHI mensuels convertis (kWh/m²/jour) depuis le CSV CAMS."""
     lignes = chemin.read_text(encoding="utf-8", errors="replace").splitlines()
     col = _index_colonnes(lignes)
-    out: dict[str, list[tuple[int, int, float]]] = {"ghi": [], "dni": []}
+    out: dict[str, list[tuple[int, int, float]]] = {g: [] for g in GRANDEURS}
     for ln in lignes:
         if not ln or ln.startswith("#"):
             continue
@@ -143,7 +147,7 @@ def _extraire(chemin: Path) -> dict[str, list[tuple[int, int, float]]]:
 
 
 def main() -> None:
-    par_grandeur: dict[str, list[dict[str, Any]]] = {"ghi": [], "dni": []}
+    par_grandeur: dict[str, list[dict[str, Any]]] = {g: [] for g in GRANDEURS}
     attendu = (ANNEE_FIN - ANNEE_DEBUT + 1) * 12
     client = _client()
     with tempfile.TemporaryDirectory() as tmp:
@@ -151,7 +155,7 @@ def main() -> None:
         for code in POINTS:
             nom, lat, lon = _coord(code)
             mesures = _extraire(_telecharger(client, lat, lon, dossier))
-            for grandeur in ("ghi", "dni"):
+            for grandeur in GRANDEURS:
                 m = mesures[grandeur]
                 if len(m) != attendu:
                     raise SystemExit(f"{code}/{grandeur} : {len(m)} mois, {attendu} attendus")
@@ -172,7 +176,7 @@ def main() -> None:
                     }
                 )
                 print(f"{code}/{grandeur}: {len(m)} mois, ∈ [{vmin}, {vmax}] kWh/m²/jour")
-    for grandeur in ("ghi", "dni"):
+    for grandeur in GRANDEURS:
         _ecrire_seed(grandeur, par_grandeur[grandeur])
         print(f"Seed régénéré : series_cams_{grandeur}_mensuel_civ.py")
 
@@ -198,10 +202,11 @@ def _ecrire_seed(grandeur: str, series: list[dict[str, Any]]) -> None:
         lignes.append("    },")
     corps = "\n".join(lignes)
     borne = BORNES_MAX[grandeur]
+    contrat = "ADR-0013" if grandeur == "dhi" else "ADR-0011"
     contenu = f'''"""Séries {grandeur.upper()} mensuel CAMS Radiation 2005-2020 — instance CIV.
 
 **Fichier généré** par ``scripts/ingest_cams_radiation_mensuel.py`` ; ne pas
-éditer à la main. Contrat de série : ADR-0011 (conventions : ADR-0007,
+éditer à la main. Contrat de série : {contrat} (conventions : ADR-0007,
 normalisation Wh/m²→kWh/m²/jour : ADR-0011).
 
 Chaque mesure ``(annee, mois, valeur)`` est la **moyenne journalière** du mois

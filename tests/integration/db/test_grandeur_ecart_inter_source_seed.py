@@ -2,7 +2,7 @@
 
 Écarts inter-source mensuels, matérialisés dans ``grandeurs_metier`` sur la
 fenêtre commune 2005-2020, tous référés à NASA POWER (dénominateur commun →
-triangulation, ADR-0009 à ADR-0012) :
+triangulation, ADR-0009 à ADR-0013) :
 
 - ``ecart_relatif_ghi_sarah3_nasa`` (GHI SARAH-3 vs NASA, migration 0011) ;
 - ``ecart_relatif_ghi_era5_nasa`` (GHI ERA5 vs NASA, migration 0013) ;
@@ -11,7 +11,9 @@ triangulation, ADR-0009 à ADR-0012) :
   écart DNI ; la référence NASA DNI couvre 2001-2020, la fenêtre commune reste
   2005-2020 ;
 - ``ecart_relatif_dni_sarah3_nasa`` (DNI SARAH-3 vs NASA, migration 0019) ;
-- ``ecart_relatif_dni_era5_nasa`` (DNI ERA5 vs NASA, migration 0020).
+- ``ecart_relatif_dni_era5_nasa`` (DNI ERA5 vs NASA, migration 0020) ;
+- ``ecart_relatif_dhi_cams_nasa`` (DHI CAMS vs NASA, migration 0023) — premier
+  écart DHI ; la référence NASA DHI couvre 1991-2020.
 
 Vérifie, pour chacun, les trois pièges tranchés (classification ``stockee``,
 fenêtre commune stricte 2005-2020 / 576 lignes, confiance B / statut brut) et la
@@ -29,8 +31,10 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from kuma_data_core.db.seeds import series_cams_dhi_mensuel_civ as cams_dhi
 from kuma_data_core.db.seeds import series_cams_dni_mensuel_civ as cams_dni
 from kuma_data_core.db.seeds import series_cams_ghi_mensuel_civ as cams_ghi
+from kuma_data_core.db.seeds import series_nasa_power_dhi_mensuel_civ as np_dhi
 from kuma_data_core.db.seeds import series_nasa_power_dni_mensuel_civ as np_dni
 from kuma_data_core.db.seeds import series_nasa_power_ghi_mensuel_civ as np_ghi
 from kuma_data_core.db.seeds import series_pvgis_era5_dni_mensuel_civ as era5_dni
@@ -62,6 +66,7 @@ _ECARTS = [
     Ecart("ecart_relatif_dni_cams_nasa", "ecart_dni_cams_nasa", cams_dni, np_dni),
     Ecart("ecart_relatif_dni_sarah3_nasa", "ecart_dni_sarah3_nasa", sarah3_dni, np_dni),
     Ecart("ecart_relatif_dni_era5_nasa", "ecart_dni_era5_nasa", era5_dni, np_dni),
+    Ecart("ecart_relatif_dhi_cams_nasa", "ecart_dhi_cams_nasa", cams_dhi, np_dhi),
 ]
 
 

@@ -7,6 +7,17 @@ le projet suit le versionnement sémantique.
 
 ### Ajouté
 
+- Jalon 2/3 — **DHI** (ADR-0013) : irradiation diffuse horizontale mensuelle
+  **NASA POWER** 1991-2020 (`ALLSKY_SFC_SW_DIFF`, 1080 mesures, migration 0021)
+  et **CAMS Radiation** 2005-2020 (colonne `DHI` du CSV ADS, 576 mesures,
+  migration 0022), confiance B, sources existantes. Premier écart diffus
+  `ecart_relatif_dhi_cams_nasa` (0023, NASA au dénominateur, 576 lignes). Les
+  ingesteurs NASA et CAMS, étendus au DHI, régénèrent les seeds GHI/DNI gravés
+  à l'octet près. Résultat : le DHI concorde bien mieux que le DNI (moyenne des
+  ratios mensuels +7,4 % Abidjan, +6,4 % Yamoussoukro, −2,8 % Korhogo, contre
+  +31 à +78 % pour le DNI) — le désaccord inter-source porte surtout sur la
+  composante directe. PVGIS ne sert que le ratio `Kd` arrondi au centième :
+  non ingéré (DHI reconstruit, erreur d'arrondi jusqu'à ~1,3 %).
 - Jalon 2/3 — **triangulation DNI à 4 sources** (ADR-0012) : DNI mensuel
   **SARAH-3** et **ERA5** via PVGIS (champ `Hb(n)_m`, option `mr_dni=1` de
   `MRcalc`), 2005-2020 aux 3 points — migrations 0017 et 0018, 576 mesures
