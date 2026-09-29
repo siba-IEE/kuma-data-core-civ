@@ -169,25 +169,39 @@ def test_dhi_jamais_superieur_au_ghi(db_session: Session, source: str) -> None:
     """Cohérence physique : DHI <= GHI pour chaque (localité, mois) d'une même source.
 
     Ce contrôle a exclu le DHI NASA POWER 1991-2000, en rupture avec 2001+ et
-    parfois supérieur au GHI (ADR-0013).
+    parfois supérieur au GHI (ADR-0013). Il couvre toutes les localités (pilotes et
+    lots nationaux). Un seul regroupement par (localité, mois) plutôt qu'une
+    auto-jointure : le plan reste linéaire quelles que soient les statistiques.
     """
-    rows = db_session.execute(
+    row = db_session.execute(
         text(
             """
-            SELECT loc.code AS localite, md.annee, md.mois, md.valeur AS dhi, mg.valeur AS ghi
-            FROM mesures_ressource_mensuelles md
-            JOIN series_metadonnees sd ON sd.id = md.serie_id AND sd.grandeur_code = 'dhi'
-            JOIN sources src ON src.id = sd.source_id AND src.code = :s
-            JOIN series_metadonnees sg
-                ON sg.grandeur_code = 'ghi' AND sg.localite_id = sd.localite_id
-                AND sg.source_id = sd.source_id
-            JOIN mesures_ressource_mensuelles mg
-                ON mg.serie_id = sg.id AND mg.annee = md.annee AND mg.mois = md.mois
-            JOIN localites loc ON loc.id = sd.localite_id
+            SELECT COUNT(*) FILTER (WHERE dhi IS NOT NULL AND ghi IS NOT NULL) AS paires,
+                   COUNT(*) FILTER (WHERE dhi > ghi) AS violations
+            FROM (
+                SELECT s.localite_id, m.annee, m.mois,
+                       MAX(m.valeur) FILTER (WHERE s.grandeur_code = 'dhi') AS dhi,
+                       MAX(m.valeur) FILTER (WHERE s.grandeur_code = 'ghi') AS ghi
+                FROM mesures_ressource_mensuelles m
+                JOIN series_metadonnees s ON s.id = m.serie_id
+                JOIN sources src ON src.id = s.source_id AND src.code = :s
+                WHERE s.grandeur_code IN ('dhi', 'ghi') AND s.granularite = 'mensuel'
+                GROUP BY s.localite_id, m.annee, m.mois
+            ) t
             """
         ),
         {"s": source},
-    ).all()
-    assert rows, source
-    for r in rows:
-        assert r.dhi <= r.ghi, (r.localite, r.annee, r.mois, r.dhi, r.ghi)
+    ).one()
+    nb_dhi = db_session.execute(
+        text(
+            """
+            SELECT COUNT(*) FROM mesures_ressource_mensuelles m
+            JOIN series_metadonnees s ON s.id = m.serie_id
+            JOIN sources src ON src.id = s.source_id AND src.code = :s
+            WHERE s.grandeur_code = 'dhi' AND s.granularite = 'mensuel'
+            """
+        ),
+        {"s": source},
+    ).scalar_one()
+    assert row.paires == nb_dhi > 0, source  # chaque mois DHI a son GHI
+    assert row.violations == 0, (source, row.violations)

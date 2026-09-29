@@ -113,23 +113,34 @@ def test_coherence_avec_le_mensuel(db_session: Session, contrat: ContratSerie) -
 
 
 def test_dhi_jamais_superieur_au_ghi_journalier(db_session: Session) -> None:
-    """Cohérence physique jour par jour : DHI <= GHI (NASA, 2001-2020)."""
-    nb = db_session.execute(
+    """Cohérence physique jour par jour : DHI <= GHI (NASA, 2001-2020).
+
+    Un seul regroupement par (localité, jour) plutôt qu'une auto-jointure de
+    ``mesures_ressource`` : le plan reste linéaire quelles que soient les
+    statistiques du planificateur.
+    """
+    rows = db_session.execute(
         text(
             """
-            SELECT COUNT(*)
-            FROM mesures_ressource md
-            JOIN series_metadonnees sd ON sd.id = md.serie_id AND sd.code = ANY(:dhi)
-            JOIN series_metadonnees sg
-                ON sg.localite_id = sd.localite_id AND sg.code = ANY(:ghi)
-            JOIN mesures_ressource mg
-                ON mg.serie_id = sg.id AND mg.instant_mesure = md.instant_mesure
-            WHERE md.valeur > mg.valeur
+            SELECT COUNT(*) FILTER (WHERE dhi IS NOT NULL AND ghi IS NOT NULL) AS paires,
+                   COUNT(*) FILTER (WHERE dhi > ghi) AS violations
+            FROM (
+                SELECT s.localite_id, m.instant_mesure,
+                       MAX(m.valeur) FILTER (WHERE s.grandeur_code = 'dhi') AS dhi,
+                       MAX(m.valeur) FILTER (WHERE s.grandeur_code = 'ghi') AS ghi
+                FROM mesures_ressource m JOIN series_metadonnees s ON s.id = m.serie_id
+                WHERE s.code = ANY(:codes)
+                GROUP BY s.localite_id, m.instant_mesure
+            ) t
             """
         ),
         {
-            "dhi": [CONTRATS_NASA_JOURNALIERS["dhi"].code_serie(c) for c in _LOCALITES],
-            "ghi": [CONTRATS_NASA_JOURNALIERS["ghi"].code_serie(c) for c in _LOCALITES],
+            "codes": [
+                CONTRATS_NASA_JOURNALIERS[g].code_serie(c)
+                for g in ("dhi", "ghi")
+                for c in _LOCALITES
+            ]
         },
-    ).scalar_one()
-    assert nb == 0
+    ).one()
+    assert rows.paires == 34 * nb_jours(CONTRATS_NASA_JOURNALIERS["dhi"])
+    assert rows.violations == 0
