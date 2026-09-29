@@ -1,13 +1,14 @@
-"""Tests d'intégration de la grandeur ``fraction_diffuse`` (migration 0024, ADR-0014).
+"""Tests d'intégration de la grandeur ``fraction_diffuse`` (migrations 0024 et 0029).
 
-Fraction diffuse DHI/GHI NASA POWER aux 3 points, mensuelle et annuelle
-2001-2020 (couverture du DHI NASA), matérialisée dans ``grandeurs_metier``.
-Vérifie le contrat (grandeur ``stockee`` sans dimension, séries
-``calcul_derive`` de ``kuma_calculs``), la
-complétude (720 mensuelles, 60 annuelles), le domaine physique [0, 1] et la
-**fidélité** : chaque valeur gravée est recalculée indépendamment depuis les
-seeds bruts NASA (DHI 0021, GHI 0008) — ``Σ DHI / Σ GHI`` sur les jours de la
-période, reconstruit depuis les moyennes journalières mensuelles.
+Fraction diffuse DHI/GHI NASA POWER aux **142 localités** (3 pilotes, ADR-0014 ;
+139 localités des lots nationaux, ADR-0017), mensuelle et annuelle 2001-2020
+(couverture du DHI NASA), matérialisée dans ``grandeurs_metier``. Vérifie le
+contrat (grandeur ``stockee`` sans dimension, séries ``calcul_derive`` de
+``kuma_calculs``), la complétude (240 mois et 20 ans par localité), le domaine
+physique [0, 1] et la **fidélité** : chaque valeur gravée est recalculée
+indépendamment depuis les sources brutes NASA (seeds pilotes et CSV des lots) —
+``Σ DHI / Σ GHI`` sur les jours de la période, reconstruit depuis les moyennes
+journalières mensuelles.
 """
 
 from __future__ import annotations
@@ -21,23 +22,25 @@ from sqlalchemy.orm import Session
 
 from kuma_data_core.db.seeds import series_nasa_power_dhi_mensuel_civ as np_dhi
 from kuma_data_core.db.seeds import series_nasa_power_ghi_mensuel_civ as np_ghi
+from tests.integration.db.mesures_brutes import mesures_mensuelles
 
 pytestmark = pytest.mark.integration
 
 GRANDEUR_CODE = "fraction_diffuse"
-NB_MENSUEL = 720  # 240 mois x 3 points
-NB_ANNUEL = 60  # 20 ans x 3 points
-_LOCALITES = {s["localite_code"] for s in np_ghi.SERIES}
+# 3 pilotes + 139 localités des lots nationaux (ADR-0017).
+_LOCALITES = set(mesures_mensuelles(np_ghi))
+NB_MENSUEL = 240 * len(_LOCALITES)  # 240 mois x 142 localités
+NB_ANNUEL = 20 * len(_LOCALITES)  # 20 ans x 142 localités
 
 
 def _par_localite(seed: ModuleType) -> dict[str, dict[tuple[int, int], float]]:
-    return {s["localite_code"]: {(a, m): v for a, m, v in s["mesures"]} for s in seed.SERIES}
+    return mesures_mensuelles(seed)  # pilotes + lots nationaux
 
 
 def _attendu() -> tuple[dict[tuple[str, int, int], float], dict[tuple[str, int], float]]:
     """Recalcule mensuel (moy DHI / moy GHI) et annuel (pondéré par les jours).
 
-    Intersection des deux seeds : le DHI NASA couvre 2001-2020, le GHI 1991-2020.
+    Intersection des deux sources : le DHI NASA couvre 2001-2020, le GHI 1991-2020.
     """
     dhi, ghi = _par_localite(np_dhi), _par_localite(np_ghi)
     mensuel: dict[tuple[str, int, int], float] = {}

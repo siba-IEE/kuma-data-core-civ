@@ -16,6 +16,8 @@ période, conversion) ; seules les localités changent.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from kuma_data_core.db.seeds.localites_civ_seed_data import LOCALITES_SEED
 from kuma_data_core.db.seeds.series_csv import ContratSerie
 from kuma_data_core.db.seeds.series_nasa_power_ghi_mensuel_civ import SERIES as _SERIES_PILOTES
@@ -156,3 +158,51 @@ CONTRATS_NASA_JOURNALIERS: dict[str, ContratSerie] = {
     "dni": _nasa_jour("dni", 2001, 12.0),
     "dhi": _nasa_jour("dhi", 2001, 7.0),  # rupture DHI avant 2001 (ADR-0013)
 }
+
+
+# --- Grandeurs dérivées étendues aux lots (ADR-0017) --------------------------------
+
+
+@dataclass(frozen=True)
+class EcartInterSource:
+    """Un écart relatif inter-source ``(comparée − nasa) / nasa × 100`` (ADR-0009)."""
+
+    grandeur_code: str  # ex. "ecart_relatif_ghi_sarah3_nasa"
+    prefixe_serie: str  # ex. "ecart_ghi_sarah3_nasa"
+    grandeur_brute: str  # "ghi", "dni" ou "dhi"
+    source_comparee: str  # code de la source au numérateur
+    libelle_source: str  # pour les libellés de série
+
+    def code_serie(self, localite_code: str) -> str:
+        return f"{self.prefixe_serie}_{localite_code}"
+
+
+# Les 7 écarts gravés aux pilotes (0011, 0013, 0015, 0016, 0019, 0020, 0023).
+ECARTS_INTER_SOURCES: tuple[EcartInterSource, ...] = (
+    EcartInterSource(
+        "ecart_relatif_ghi_sarah3_nasa", "ecart_ghi_sarah3_nasa", "ghi", "sarah3_monthly", "SARAH-3"
+    ),
+    EcartInterSource(
+        "ecart_relatif_ghi_era5_nasa", "ecart_ghi_era5_nasa", "ghi", "era5_pvgis", "ERA5"
+    ),
+    EcartInterSource(
+        "ecart_relatif_ghi_cams_nasa", "ecart_ghi_cams_nasa", "ghi", "cams_radiation", "CAMS"
+    ),
+    EcartInterSource(
+        "ecart_relatif_dni_cams_nasa", "ecart_dni_cams_nasa", "dni", "cams_radiation", "CAMS"
+    ),
+    EcartInterSource(
+        "ecart_relatif_dni_sarah3_nasa", "ecart_dni_sarah3_nasa", "dni", "sarah3_monthly", "SARAH-3"
+    ),
+    EcartInterSource(
+        "ecart_relatif_dni_era5_nasa", "ecart_dni_era5_nasa", "dni", "era5_pvgis", "ERA5"
+    ),
+    EcartInterSource(
+        "ecart_relatif_dhi_cams_nasa", "ecart_dhi_cams_nasa", "dhi", "cams_radiation", "CAMS"
+    ),
+)
+
+
+def points_lots_mensuels() -> list[tuple[str, str, float, float]]:
+    """Les 139 localités des lots mensuels (31 régions + 108 départements)."""
+    return sorted(points_lot("regions") + points_lot("departements"))
