@@ -1,6 +1,7 @@
 # ADR-0013 : DHI — NASA POWER et CAMS, premier écart diffus
 
-Date : 2026-09-29. Statut : accepté — **gravé** (migrations 0021-0023, 2026-09-29).
+Date : 2026-09-29. Statut : accepté — **gravé** (migrations 0021-0023, 2026-09-29 ;
+fenêtre NASA corrigée à 2001-2020 le même jour, voir « Rupture 2000/2001 »).
 
 ## Contexte
 
@@ -13,7 +14,7 @@ Sondage des sources déjà utilisées (2026-09-29) :
 
 | Source | DHI servi | Décision |
 |---|---|---|
-| NASA POWER | `ALLSKY_SFC_SW_DIFF`, moyenne journalière mensuelle en kWh/m²/jour, **1991-2020 sans trou** | ingérée |
+| NASA POWER | `ALLSKY_SFC_SW_DIFF`, moyenne journalière mensuelle en kWh/m²/jour, servi dès 1991 mais **en rupture avant 2001** | ingérée **2001-2020** |
 | CAMS Radiation | colonne `DHI` du CSV ADS déjà utilisé (Wh/m² intégrés au mois) | ingérée |
 | PVGIS (SARAH-3, ERA5) | **seulement le ratio `Kd`** = diffus/global (option `d2g=1`), **arrondi à 2 décimales** | **non ingérée** |
 
@@ -28,7 +29,7 @@ masquerait cette dérivation. Reportée tant qu'aucune sortie native n'existe.
 ### Séries brutes (contrat ADR-0007/0011)
 
 - **NASA POWER DHI** (migration 0021) : source `nasa_power` (id 1), 3 séries ×
-  360 mois **1991-2020** = **1080 mesures**, `modele_satellitaire`, confiance B,
+  240 mois **2001-2020** = **720 mesures**, `modele_satellitaire`, confiance B,
   **aucune conversion** (NASA sert déjà la moyenne journalière en kWh/m²/jour).
 - **CAMS DHI** (migration 0022) : source `cams_radiation` (id 13), 3 séries × 192
   mois **2005-2020** = **576 mesures**, conversion ADR-0011 (Wh/m² ÷ 1000 ÷ jours
@@ -38,6 +39,27 @@ Aucune nouvelle source ni valeur d'énumération ; garde-fous d'identité de sou
 **Continuité prouvée** : les ingesteurs NASA et CAMS, étendus au DHI,
 régénèrent les seeds GHI et DNI déjà gravés **identiques à l'octet** (`git diff`
 vide) — ni NASA ni l'ADS n'ont révisé leurs valeurs.
+
+### Rupture 2000/2001 du DHI NASA — années 1991-2000 non gravées
+
+La 1ʳᵉ version de 0021 gravait 1991-2020 (1080 mesures). Le calcul de la
+fraction diffuse (ADR-0014) l'a fait échouer sur son garde-fou `[0, 1]` :
+
+| Année | DHI moyen (Abidjan, Yamoussoukro, Korhogo) | GHI moyen | DHI / GHI |
+|---|---|---|---|
+| 1999 | 3,83 / 3,85 / 3,27 | 4,83 / 4,68 / 5,35 | 0,79 / 0,82 / 0,61 |
+| 2000 | 3,76 / 3,82 / 3,30 | 4,70 / 4,59 / 5,32 | 0,80 / 0,83 / 0,62 |
+| 2001 | 2,57 / 2,54 / 2,53 | 4,71 / 4,56 / 5,44 | 0,55 / 0,56 / 0,47 |
+| 2002 | 2,55 / 2,53 / 2,51 | 4,66 / 4,59 / 5,40 | 0,55 / 0,55 / 0,46 |
+
+Le DHI **saute d'environ un tiers entre 2000 et 2001** aux 3 points, alors que
+le GHI est continu ; avant 2001, **DHI > GHI** sur 10 mois à Yamoussoukro
+(physiquement impossible). Même frontière que le DNI NASA, servi seulement
+depuis 2001 (ADR-0007). On ne grave donc que **2001-2020** ; la migration 0021,
+non encore fusionnée sur `main`, a été corrigée en ce sens (720 mesures), et un
+test de cohérence physique `DHI ≤ GHI` par source garde la régression. L'écart
+DHI (0023, fenêtre 2005-2020) n'est pas affecté. Le GHI NASA 1991-2000 (0008)
+ne montre pas de saut à l'échelle annuelle ; il n'est pas remis en cause ici.
 
 ### Écart dérivé : `ecart_relatif_dhi_cams_nasa` (id 41, migration 0023)
 
@@ -68,6 +90,8 @@ colonnes suivantes sont des moyennes des ratios mensuels **gravés**.)*
   physique n'est tranchée ici : ce n'est pas une signature d'aérosols démontrée.
 - Une 3ᵉ source DHI native reste nécessaire pour trianguler (PVGIS ne la sert
   pas ; mesure sol ESMAP/WAPP, Jalon 4).
+- NASA POWER sert le DHI **en rupture avant 2001** : toute climatologie DHI NASA
+  commence en 2001.
 
 ## Reproductibilité
 
@@ -80,5 +104,5 @@ colonnes suivantes sont des moyennes des ratios mensuels **gravés**.)*
 
 - Les 3 composantes du rayonnement (GHI, DNI, DHI) sont en base aux 3 points.
 - 7 grandeurs d'écart, toutes référées à NASA POWER.
-- La **fraction diffuse** (grandeur `fraction_diffuse`, id 3) devient calculable
-  par source (DHI/GHI) : prochaine grandeur dérivée possible, à décider.
+- La **fraction diffuse** (grandeur `fraction_diffuse`, id 3) est matérialisée
+  depuis NASA POWER en ADR-0014 (migration 0024).

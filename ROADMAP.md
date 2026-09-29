@@ -44,9 +44,9 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
   - [x] DNI mensuel SARAH-3 et ERA5 (PVGIS, `Hb(n)_m` via `mr_dni=1`),
         2005-2020, mêmes 3 points (migrations 0017-0018, ADR-0012) — DNI à
         4 sources ; sources existantes, ingesteurs PVGIS paramétrés GHI + DNI.
-  - [x] DHI mensuel NASA POWER 1991-2020 et CAMS 2005-2020, mêmes 3 points
-        (migrations 0021-0022, ADR-0013). PVGIS ne sert que le ratio `Kd`
-        arrondi : non ingéré (DHI reconstruit, pas natif).
+  - [x] DHI mensuel NASA POWER 2001-2020 (rupture NASA avant 2001) et CAMS
+        2005-2020, mêmes 3 points (migrations 0021-0022, ADR-0013). PVGIS ne
+        sert que le ratio `Kd` arrondi : non ingéré (DHI reconstruit, pas natif).
   - [ ] Autres points.
 - [ ] Chaîne d'ingestion reproductible.
   - [x] Ingesteur NASA POWER mensuel (`scripts/ingest_nasa_power_mensuel.py`,
@@ -81,6 +81,10 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
       migration 0023) — le diffus concorde à ±8 % en moyenne, le désaccord
       inter-source porte surtout sur le direct —
       [ADR-0013](decisions/0013-dhi-nasa-cams.md).
+- [x] **Fraction diffuse** NASA POWER, mensuelle et annuelle 2001-2020
+      (`fraction_diffuse`, migration 0024) — première grandeur métier hors
+      écart, calculée en base depuis le mensuel —
+      [ADR-0014](decisions/0014-fraction-diffuse-nasa.md).
 - [ ] Grandeurs métier calculées (POA, productible, P50/P90, salissure, PR
       réaliste) exposées par l'API.
 - [ ] Contrôle qualité horaire.

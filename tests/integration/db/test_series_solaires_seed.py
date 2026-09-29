@@ -9,8 +9,8 @@ Irradiation mensuelle aux 3 points CIV, paramétré par seed de série :
   source DNI de l'instance ;
 - DNI SARAH-3 et ERA5 via PVGIS 2005-2020 (192 mesures chacune, ADR-0012) —
   triangulation DNI à 4 sources ;
-- DHI NASA POWER 1991-2020 (360 mesures) et CAMS 2005-2020 (192 mesures),
-  ADR-0013.
+- DHI NASA POWER 2001-2020 (240 mesures) et CAMS 2005-2020 (192 mesures),
+  ADR-0013 — plus un contrôle de cohérence physique DHI <= GHI par source.
 Métadonnées de série, complétude, invariants (mois 1-12, confiance B, statut
 brut, bornes) et fidélité au seed. Chaque seed porte sa source, sa grandeur et
 sa période — le test les lit du module, sans littéral en dur.
@@ -162,3 +162,32 @@ def test_valeurs_fideles_au_seed(db_session: Session, seed: ModuleType) -> None:
                 {"c": s["code"], "a": annee, "mo": mois},
             ).scalar_one()
             assert valeur == pytest.approx(attendu), (s["code"], annee, mois)
+
+
+@pytest.mark.parametrize("source", ["nasa_power", "cams_radiation"])
+def test_dhi_jamais_superieur_au_ghi(db_session: Session, source: str) -> None:
+    """Cohérence physique : DHI <= GHI pour chaque (localité, mois) d'une même source.
+
+    Ce contrôle a exclu le DHI NASA POWER 1991-2000, en rupture avec 2001+ et
+    parfois supérieur au GHI (ADR-0013).
+    """
+    rows = db_session.execute(
+        text(
+            """
+            SELECT loc.code AS localite, md.annee, md.mois, md.valeur AS dhi, mg.valeur AS ghi
+            FROM mesures_ressource_mensuelles md
+            JOIN series_metadonnees sd ON sd.id = md.serie_id AND sd.grandeur_code = 'dhi'
+            JOIN sources src ON src.id = sd.source_id AND src.code = :s
+            JOIN series_metadonnees sg
+                ON sg.grandeur_code = 'ghi' AND sg.localite_id = sd.localite_id
+                AND sg.source_id = sd.source_id
+            JOIN mesures_ressource_mensuelles mg
+                ON mg.serie_id = sg.id AND mg.annee = md.annee AND mg.mois = md.mois
+            JOIN localites loc ON loc.id = sd.localite_id
+            """
+        ),
+        {"s": source},
+    ).all()
+    assert rows, source
+    for r in rows:
+        assert r.dhi <= r.ghi, (r.localite, r.annee, r.mois, r.dhi, r.ghi)
