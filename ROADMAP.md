@@ -47,7 +47,12 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
   - [x] DHI mensuel NASA POWER 2001-2020 (rupture NASA avant 2001) et CAMS
         2005-2020, mêmes 3 points (migrations 0021-0022, ADR-0013). PVGIS ne
         sert que le ratio `Kd` arrondi : non ingéré (DHI reconstruit, pas natif).
-  - [ ] Autres points.
+  - [x] **Lot régions** : les 31 régions, 4 sources × GHI/DNI/DHI aux contrats
+        pilotes, 310 séries, 67 704 mesures (migration 0025, ADR-0015) — seeds
+        en CSV gzip déterministes.
+  - [ ] **Lot départements** : 108 départements hors pilotes (CSV NASA et
+        PVGIS prêts ; CAMS en cours d'ingestion).
+  - [ ] **Lot journalier** NASA POWER.
 - [ ] Chaîne d'ingestion reproductible.
   - [x] Ingesteur NASA POWER mensuel (`scripts/ingest_nasa_power_mensuel.py`,
         paramétré par grandeur GHI/DNI/DHI, hors-ligne → seed → migration ;

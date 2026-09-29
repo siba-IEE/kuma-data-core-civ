@@ -7,6 +7,13 @@ le projet suit le versionnement sémantique.
 
 ### Ajouté
 
+- Jalon 2 — **couverture nationale, lot régions** (ADR-0015, migration 0025) :
+  les 31 régions aux 4 sources (NASA POWER GHI/DNI/DHI, SARAH-3 et ERA5
+  GHI/DNI, CAMS GHI/DNI/DHI), aux contrats des séries pilotes : 310 séries,
+  67 704 mesures, confiance B. Nouveaux seeds **CSV gzip** (écriture
+  déterministe, relecture validée) et option `--lot` des 4 ingesteurs. Constat :
+  NASA POWER ne donne que 22 séries distinctes sur 31 régions (maille solaire
+  d'environ 1°) ; gradient sud → nord du GHI et du DNI dans toutes les sources.
 - Jalon 3 (grandeurs) — **fraction diffuse** NASA POWER (ADR-0014, migration
   0024) : `fraction_diffuse` (id 3, formule de la fiche, version 1) matérialisée
   aux 3 points, 2001-2020, 720 lignes mensuelles et 60 annuelles, confiance B.
