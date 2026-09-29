@@ -44,11 +44,17 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
   - [x] DNI mensuel SARAH-3 et ERA5 (PVGIS, `Hb(n)_m` via `mr_dni=1`),
         2005-2020, mêmes 3 points (migrations 0017-0018, ADR-0012) — DNI à
         4 sources ; sources existantes, ingesteurs PVGIS paramétrés GHI + DNI.
-  - [ ] DHI, autres points.
+  - [x] DHI mensuel NASA POWER 1991-2020 et CAMS 2005-2020, mêmes 3 points
+        (migrations 0021-0022, ADR-0013). PVGIS ne sert que le ratio `Kd`
+        arrondi : non ingéré (DHI reconstruit, pas natif).
+  - [ ] Autres points.
 - [ ] Chaîne d'ingestion reproductible.
   - [x] Ingesteur NASA POWER mensuel (`scripts/ingest_nasa_power_mensuel.py`,
-        paramétré par grandeur, hors-ligne → seed → migration ; garde-fous
-        bornes/complétude/anti-remplissage).
+        paramétré par grandeur GHI/DNI/DHI, hors-ligne → seed → migration ;
+        garde-fous bornes/complétude/anti-remplissage).
+  - [x] Ingesteurs PVGIS SARAH-3 et ERA5 (GHI + DNI en une requête) et CAMS
+        (GHI + DNI + DHI, clé ADS) ; chaque extension régénère les seeds déjà
+        gravés à l'octet près.
 
 ## Jalon 3 : grandeurs et qualité
 
@@ -71,6 +77,10 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
       migrations 0019-0020). NASA POWER ressort comme l'aberrant bas du DNI ;
       le motif saisonnier (Harmattan vs mousson) dépend de la source —
       [ADR-0012](decisions/0012-triangulation-dni-pvgis-sarah3-era5.md).
+- [x] **Premier écart DHI** : CAMS vs NASA POWER (`ecart_relatif_dhi_cams_nasa`,
+      migration 0023) — le diffus concorde à ±8 % en moyenne, le désaccord
+      inter-source porte surtout sur le direct —
+      [ADR-0013](decisions/0013-dhi-nasa-cams.md).
 - [ ] Grandeurs métier calculées (POA, productible, P50/P90, salissure, PR
       réaliste) exposées par l'API.
 - [ ] Contrôle qualité horaire.
