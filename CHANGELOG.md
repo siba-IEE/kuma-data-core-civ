@@ -7,6 +7,12 @@ le projet suit le versionnement sémantique.
 
 ### Ajouté
 
+- Jalon 2 — **couverture nationale, lot départements** (ADR-0015, migration
+  0027) : les 108 départements non pilotes aux 4 sources, 1080 séries,
+  235 872 mesures ; avec les 3 pilotes, les 111 départements sont couverts
+  (310 128 mesures mensuelles en base). NASA POWER n'y distingue que 35 valeurs
+  (maille d'environ 1°) ; SARAH-3 et CAMS varient réellement d'un département à
+  l'autre. Test des lots généralisé (`test_lots_nationaux_seed.py`).
 - Jalon 2 — **NASA POWER journalier** (ADR-0016, migration 0026) : GHI
   1991-2020, DNI et DHI 2001-2020 aux 3 points pilotes et 31 régions, 102
   séries, 869 312 mesures dans `mesures_ressource`, insérées par `COPY`.

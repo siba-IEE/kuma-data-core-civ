@@ -26,8 +26,9 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
 
 ## Jalon 2 : donnée solaire brute
 
-- [ ] Séries et mesures brutes par source (NASA POWER, SARAH-3 via PVGIS, CAMS,
-      ERA5-Land) aux points ivoiriens, en confiance B.
+- [x] Séries et mesures brutes par source (NASA POWER, SARAH-3 et ERA5 via
+      PVGIS, CAMS) sur tout le pays (111 départements, 31 régions), en
+      confiance B.
   - [x] GHI mensuel NASA POWER, 1991-2020, 3 points (Abidjan, Yamoussoukro,
         Korhogo), confiance B (migration 0008, ADR-0007).
   - [x] DNI mensuel NASA POWER, 2001-2020 (couverture DNI NASA POWER), mêmes
@@ -50,8 +51,9 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
   - [x] **Lot régions** : les 31 régions, 4 sources × GHI/DNI/DHI aux contrats
         pilotes, 310 séries, 67 704 mesures (migration 0025, ADR-0015) — seeds
         en CSV gzip déterministes.
-  - [ ] **Lot départements** : 108 départements hors pilotes (CSV NASA et
-        PVGIS prêts ; CAMS en cours d'ingestion).
+  - [x] **Lot départements** : 108 départements hors pilotes, 4 sources,
+        1080 séries, 235 872 mesures (migration 0027, ADR-0015) — avec les
+        pilotes, les 111 départements sont couverts.
   - [x] **Lot journalier** NASA POWER : GHI 1991-2020, DNI et DHI 2001-2020
         aux 3 pilotes + 31 régions, 869 312 mesures (migration 0026,
         ADR-0016) ; cohérent avec le mensuel à l'arrondi près.

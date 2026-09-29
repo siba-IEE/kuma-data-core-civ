@@ -1,6 +1,7 @@
 # ADR-0015 : Couverture nationale par lots — seeds CSV gzip
 
-Date : 2026-09-29. Statut : accepté — lot « régions » **gravé** (migration 0025).
+Date : 2026-09-29. Statut : accepté — lots « régions » (0025) et « départements »
+(0027) **gravés** ; le journalier suit l'ADR-0016 (0026).
 
 ## Contexte
 
@@ -96,9 +97,43 @@ interprétation.
 Les écarts inter-sources et la fraction diffuse restent, à ce stade, limités
 aux 3 points pilotes : leur extension aux lots est une étape distincte.
 
+## Lot 2 — départements (migration 0027)
+
+108 départements (niveau `commune`, coordonnées gravées en 0007) **hors les 3
+points pilotes**, déjà gravés en seeds Python : **1080 séries**, **235 872
+mesures**. Avec les pilotes, les **111 départements** du pays sont couverts.
+L'ingestion CAMS (108 requêtes ADS, 4 en parallèle) a pris environ 2 h, avec
+une coupure réseau reprise automatiquement par le client.
+
+**Aperçu départemental** (moyennes 2005-2020 sur les 111 départements,
+kWh/m²/jour) :
+
+| Grandeur | Source | Séries distinctes | Min | Max | Corrélation avec la latitude |
+|---|---|---:|---|---|---:|
+| GHI | NASA POWER | 35 | 4,49 (Grand-Lahou) | 5,64 (Minignan) | 0,88 |
+| GHI | SARAH-3 | 111 | 4,94 (Alépé) | 6,03 (Tengréla) | 0,80 |
+| GHI | CAMS | 111 | 4,62 (Abidjan) | 5,93 (Tengréla) | 0,84 |
+| GHI | ERA5 | 111 | 4,34 (Guéyo) | 5,72 (Tengréla) | 0,83 |
+| DNI | NASA POWER | 35 | 1,93 (Akoupé) | 3,74 (Minignan) | 0,88 |
+| DNI | CAMS | 111 | 2,74 (Abidjan) | 4,98 (Tengréla) | 0,82 |
+| DHI | NASA POWER | 35 | 2,39 (Tabou) | 2,59 (Kouto) | 0,60 |
+| DHI | CAMS | 111 | 2,39 (Kaniasso) | 2,76 (Adzopé) | −0,60 |
+
+NASA POWER ne distingue que **35 valeurs** sur les 111 départements (maille
+d'environ 1°) ; pour une étude à l'échelle d'un département, SARAH-3 et CAMS
+sont les seules sources qui varient réellement d'un point à l'autre. Le
+gradient sud → nord du GHI et du DNI se confirme dans toutes les sources ; le
+DHI reste peu variable et les sources divergent sur son sens.
+
+## Coût opérationnel
+
+La reconstruction complète 0001 → 0027 prend environ 2 min 30 et la suite de
+tests environ 4 min 30 (fidélité intégrale de chaque mesure). C'est le prix de
+la vérifiabilité ; à surveiller si d'autres lots s'ajoutent.
+
 ## Suite
 
-- **Lot 3** : NASA POWER journalier aux 3 pilotes et 31 régions, même format
-  CSV — gravé en migration 0026 ([ADR-0016](0016-nasa-power-journalier.md)).
-- **Lot 2** : les 108 départements non pilotes (niveau `commune`), migration
-  0027 dès la fin de l'ingestion CAMS.
+- Journalier NASA : gravé aux 3 pilotes et 31 régions (migration 0026,
+  [ADR-0016](0016-nasa-power-journalier.md)).
+- Étendre les écarts inter-sources et la fraction diffuse aux lots : étape
+  distincte, à décider.
