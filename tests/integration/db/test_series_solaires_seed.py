@@ -11,6 +11,9 @@ Irradiation mensuelle aux 3 points CIV, paramétré par seed de série :
   triangulation DNI à 4 sources ;
 - DHI NASA POWER 2001-2020 (240 mesures) et CAMS 2005-2020 (192 mesures),
   ADR-0013 — plus un contrôle de cohérence physique DHI <= GHI par source.
+Depuis la migration 0030 (ADR-0018), ces séries sont **prolongées** au-delà de
+2020 (NASA et CAMS jusqu'en 2025, SARAH-3 et ERA5 jusqu'en 2023) : période et
+complétude sont vérifiées sur la période prolongée.
 Métadonnées de série, complétude, invariants (mois 1-12, confiance B, statut
 brut, bornes) et fidélité au seed. Chaque seed porte sa source, sa grandeur et
 sa période — le test les lit du module, sans littéral en dur.
@@ -34,6 +37,8 @@ from kuma_data_core.db.seeds import series_pvgis_era5_dni_mensuel_civ as era5_dn
 from kuma_data_core.db.seeds import series_pvgis_era5_ghi_mensuel_civ as era5_ghi
 from kuma_data_core.db.seeds import series_pvgis_sarah3_dni_mensuel_civ as sarah3_dni
 from kuma_data_core.db.seeds import series_pvgis_sarah3_ghi_mensuel_civ as sarah3_ghi
+from kuma_data_core.db.seeds.lots_civ import contrat_extension
+from tests.integration.db.mesures_brutes import contrat_de
 
 pytestmark = pytest.mark.integration
 
@@ -55,8 +60,13 @@ def _id(seed: ModuleType) -> str:
     return f"{seed.SOURCE_CODE}:{seed.GRANDEUR_CODE}"
 
 
+def _fin(seed: ModuleType) -> int:
+    """Dernière année gravée : fin de l'extension 2021+ de la source (ADR-0018)."""
+    return contrat_extension(contrat_de(seed)).annee_fin
+
+
 def _attendu_mois(seed: ModuleType) -> int:
-    return (seed.ANNEE_FIN - seed.ANNEE_DEBUT + 1) * 12
+    return (_fin(seed) - seed.ANNEE_DEBUT + 1) * 12
 
 
 @pytest.mark.parametrize("seed", _SEEDS, ids=_id)
@@ -83,7 +93,8 @@ def test_series_metadonnees(db_session: Session, seed: ModuleType) -> None:
         assert r.granularite == "mensuel", r.code
         assert r.methode_collecte == seed.METHODE_COLLECTE, r.code
         assert r.source == seed.SOURCE_CODE, r.code
-        assert str(r.periode_debut) == seed.PERIODE_DEBUT and str(r.periode_fin) == seed.PERIODE_FIN
+        assert str(r.periode_debut) == seed.PERIODE_DEBUT
+        assert str(r.periode_fin) == f"{_fin(seed)}-12-31", r.code
         assert r.localite == localites[r.code], r.code
 
 
@@ -103,7 +114,7 @@ def test_completude_mesures(db_session: Session, seed: ModuleType) -> None:
         ).all()
         assert len(rows) == _attendu_mois(seed), code
         assert {r.mois for r in rows} == set(range(1, 13)), code
-        assert {r.annee for r in rows} == set(range(seed.ANNEE_DEBUT, seed.ANNEE_FIN + 1)), code
+        assert {r.annee for r in rows} == set(range(seed.ANNEE_DEBUT, _fin(seed) + 1)), code
 
 
 @pytest.mark.parametrize("seed", _SEEDS, ids=_id)

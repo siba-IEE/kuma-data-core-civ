@@ -7,6 +7,17 @@ le projet suit le versionnement sémantique.
 
 ### Ajouté
 
+- Jalon 2/3 — **extension temporelle 2021-2025** (ADR-0018, migrations
+  0030-0032) : les séries déjà gravées sont prolongées sous les mêmes codes,
+  jusqu'à la dernière année servie par chaque source — NASA POWER et CAMS 2025,
+  SARAH-3 et ERA5 2023 (limite PVGIS). 71 568 mesures mensuelles (142
+  localités), 186 252 journalières NASA (34 localités), et 55 238 lignes de
+  grandeurs dérivées (écarts jusqu'à la dernière année commune avec NASA,
+  fraction diffuse jusqu'en 2025). Valeurs 1991-2020 et normale climatologique
+  inchangées. Contrôle de continuité 2020/2021 : NASA, CAMS et SARAH-3
+  continus ; **ERA5 saute** (GHI +3,6 %, DNI +7,7 %, environ trois fois sa
+  variabilité interannuelle), probablement un changement du produit servi par
+  PVGIS — gravé tel quel, avec caveat. Option `--extension` des ingesteurs.
 - Jalon 3 — **grandeurs dérivées sur tout le territoire** (ADR-0017) : les 7
   écarts inter-sources (migration 0028, 186 816 lignes) et la fraction diffuse
   NASA (migration 0029, 36 140 lignes) étendus aux 139 localités des lots ;

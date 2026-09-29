@@ -13,7 +13,13 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from kuma_data_core.db.seeds.lots_civ import CONTRATS_MENSUELS, POINTS_PILOTES, points_lot
+from kuma_data_core.db.seeds.lots_civ import (
+    CONTRATS_MENSUELS,
+    LOT_EXTENSION,
+    POINTS_PILOTES,
+    contrat_extension,
+    points_lot,
+)
 from kuma_data_core.db.seeds.series_csv import ContratSerie, lire_series
 
 pytestmark = pytest.mark.integration
@@ -66,15 +72,26 @@ def test_series_metadonnees(db_session: Session, cas: tuple[str, ContratSerie]) 
         assert r.source == contrat.source_code and r.grandeur_code == contrat.grandeur_code
         assert r.methode_collecte == contrat.methode_collecte and r.granularite == "mensuel"
         assert str(r.periode_debut) == contrat.periode_debut
-        assert str(r.periode_fin) == contrat.periode_fin
+        # Prolongée par la migration 0030 (ADR-0018).
+        assert str(r.periode_fin) == contrat_extension(contrat).periode_fin
 
 
 @pytest.mark.parametrize("cas", _CAS, ids=_id)
 def test_mesures_fideles_au_csv(db_session: Session, cas: tuple[str, ContratSerie]) -> None:
-    """Chaque mesure en base = CSV committé ; confiance B, statut brut, complétude."""
+    """Chaque mesure en base = CSV committés (lot + extension 2021+) ; confiance B, brut."""
     lot, contrat = cas
     localites = _localites(lot)
+    codes = {contrat.code_serie(code) for code in localites}
+    extension = contrat_extension(contrat)
     attendu = {(s["code"], a, m): v for s in lire_series(contrat, lot) for a, m, v in s["mesures"]}
+    attendu.update(
+        {
+            (s["code"], a, m): v
+            for s in lire_series(extension, LOT_EXTENSION)
+            if s["code"] in codes
+            for a, m, v in s["mesures"]
+        }
+    )
     rows = db_session.execute(
         text(
             """
@@ -86,7 +103,7 @@ def test_mesures_fideles_au_csv(db_session: Session, cas: tuple[str, ContratSeri
         ),
         {"c": [contrat.code_serie(code) for code in localites]},
     ).all()
-    assert len(rows) == len(attendu) == LOTS[lot] * contrat.nb_mois
+    assert len(rows) == len(attendu) == LOTS[lot] * (contrat.nb_mois + extension.nb_mois)
     for r in rows:
         assert r.valeur == attendu[(r.code, r.annee, r.mois)], (r.code, r.annee, r.mois)
         assert r.statut == "brut" and r.niveau_confiance_derive == "B"

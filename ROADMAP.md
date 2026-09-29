@@ -54,6 +54,11 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
   - [x] **Lot départements** : 108 départements hors pilotes, 4 sources,
         1080 séries, 235 872 mesures (migration 0027, ADR-0015) — avec les
         pilotes, les 111 départements sont couverts.
+  - [x] **Extension 2021-2025** des séries déjà gravées : NASA et CAMS
+        jusqu'en 2025, SARAH-3 et ERA5 jusqu'en 2023 (dernière année PVGIS),
+        journalier NASA jusqu'au 31/12/2025, écarts et fraction diffuse
+        prolongés (migrations 0030-0032, ADR-0018) — couvre la fenêtre des
+        mesures sol ESMAP (2022-2024).
   - [x] **Lot journalier** NASA POWER : GHI 1991-2020, DNI et DHI 2001-2020
         aux 3 pilotes + 31 régions, 869 312 mesures (migration 0026,
         ADR-0016) ; cohérent avec le mensuel à l'arrondi près.
