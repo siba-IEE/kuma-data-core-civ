@@ -52,7 +52,9 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
         en CSV gzip déterministes.
   - [ ] **Lot départements** : 108 départements hors pilotes (CSV NASA et
         PVGIS prêts ; CAMS en cours d'ingestion).
-  - [ ] **Lot journalier** NASA POWER.
+  - [x] **Lot journalier** NASA POWER : GHI 1991-2020, DNI et DHI 2001-2020
+        aux 3 pilotes + 31 régions, 869 312 mesures (migration 0026,
+        ADR-0016) ; cohérent avec le mensuel à l'arrondi près.
 - [ ] Chaîne d'ingestion reproductible.
   - [x] Ingesteur NASA POWER mensuel (`scripts/ingest_nasa_power_mensuel.py`,
         paramétré par grandeur GHI/DNI/DHI, hors-ligne → seed → migration ;
