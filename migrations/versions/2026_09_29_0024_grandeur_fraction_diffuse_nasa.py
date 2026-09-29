@@ -192,7 +192,10 @@ def upgrade() -> None:
             )
             SELECT :grandeur_code, c.localite_id, sf.id, 'annuel',
                    c.annee, c.annee, NULL, 1,
-                   SUM(c.dhi * c.n_jours) / SUM(c.ghi * c.n_jours), 'B'
+                   -- Sommes en numeric : exactes, donc indépendantes de l'ordre
+                   -- d'agrégation (résultat reproductible au bit près).
+                   (SUM(c.dhi::numeric * c.n_jours) / SUM(c.ghi::numeric * c.n_jours))::float8,
+                   'B'
             FROM couples c
             JOIN series_metadonnees sf
                 ON sf.grandeur_code = :grandeur_code AND sf.localite_id = c.localite_id
