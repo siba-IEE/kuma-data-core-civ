@@ -15,6 +15,8 @@ from sqlalchemy.orm import Session
 
 from kuma_data_core.db.seeds.lots_civ import (
     CONTRATS_NASA_JOURNALIERS,
+    CONTRATS_NASA_JOURNALIERS_EXTENSION,
+    LOT_EXTENSION,
     LOT_JOURNALIER,
     points_journalier,
 )
@@ -24,6 +26,15 @@ pytestmark = pytest.mark.integration
 
 _LOCALITES = {code for code, _, _, _ in points_journalier()}
 _CONTRATS = list(CONTRATS_NASA_JOURNALIERS.values())
+
+
+def _extension(contrat: ContratSerie) -> ContratSerie:
+    """Contrat 2021-2025 de la même série (prolongée par la migration 0031, ADR-0018)."""
+    return CONTRATS_NASA_JOURNALIERS_EXTENSION[contrat.grandeur_code]
+
+
+def _nb_jours_total(contrat: ContratSerie) -> int:
+    return nb_jours(contrat) + nb_jours(_extension(contrat))
 
 
 def _id(contrat: ContratSerie) -> str:
@@ -51,15 +62,16 @@ def test_series_journalieres(db_session: Session, contrat: ContratSerie) -> None
         assert r.source == "nasa_power" and r.granularite == "journalier"
         assert r.methode_collecte == "modele_satellitaire"
         assert str(r.periode_debut) == contrat.periode_debut
-        assert str(r.periode_fin) == contrat.periode_fin
+        assert str(r.periode_fin) == _extension(contrat).periode_fin
 
 
 @pytest.mark.parametrize("contrat", _CONTRATS, ids=_id)
 def test_mesures_fideles_au_csv(db_session: Session, contrat: ContratSerie) -> None:
-    """Chaque mesure journalière en base = CSV committé ; confiance B, statut brut."""
+    """Chaque mesure journalière en base = CSV committés (base + extension 2021-2025)."""
     attendu = {
         (s["code"], jour): v
-        for s in lire_series_journalieres(contrat, LOT_JOURNALIER)
+        for c, lot in ((contrat, LOT_JOURNALIER), (_extension(contrat), LOT_EXTENSION))
+        for s in lire_series_journalieres(c, lot)
         for jour, v in s["mesures"]
     }
     rows = db_session.execute(
@@ -72,7 +84,7 @@ def test_mesures_fideles_au_csv(db_session: Session, contrat: ContratSerie) -> N
         ),
         {"c": [contrat.code_serie(code) for code in _LOCALITES]},
     ).all()
-    assert len(rows) == len(attendu) == 34 * nb_jours(contrat)
+    assert len(rows) == len(attendu) == 34 * _nb_jours_total(contrat)
     for r in rows:
         assert r.valeur == attendu[(r.code, r.instant_mesure)], (r.code, r.instant_mesure)
         assert r.statut == "brut" and r.niveau_confiance_derive == "B"
@@ -107,7 +119,7 @@ def test_coherence_avec_le_mensuel(db_session: Session, contrat: ContratSerie) -
             "g": contrat.grandeur_code,
         },
     ).all()
-    assert len(rows) == 34 * (contrat.annee_fin - contrat.annee_debut + 1) * 12
+    assert len(rows) == 34 * (_extension(contrat).annee_fin - contrat.annee_debut + 1) * 12
     for r in rows:
         assert abs(r.moyenne - r.mensuel) < 5e-4
 
@@ -142,5 +154,5 @@ def test_dhi_jamais_superieur_au_ghi_journalier(db_session: Session) -> None:
             ]
         },
     ).one()
-    assert rows.paires == 34 * nb_jours(CONTRATS_NASA_JOURNALIERS["dhi"])
+    assert rows.paires == 34 * _nb_jours_total(CONTRATS_NASA_JOURNALIERS["dhi"])
     assert rows.violations == 0

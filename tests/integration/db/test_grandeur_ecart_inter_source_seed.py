@@ -16,10 +16,12 @@ triangulation, ADR-0009 à ADR-0013) :
   écart DHI ; la référence NASA DHI couvre 2001-2020.
 
 Gravés aux 3 pilotes par ces migrations, puis étendus aux 139 localités des lots
-nationaux par la migration 0028 (ADR-0017) : **142 localités** au total.
+nationaux par la migration 0028 (ADR-0017) : **142 localités** au total. Prolongés
+au-delà de 2020 par la migration 0032 (ADR-0018), jusqu'à la dernière année
+commune avec NASA : 2023 pour SARAH-3 et ERA5, 2025 pour CAMS.
 
 Vérifie, pour chacun, les trois pièges tranchés (classification ``stockee``,
-fenêtre commune stricte 2005-2020 / 192 mois par localité, confiance B / statut
+fenêtre commune stricte depuis 2005 / 12 mois par an et par localité, confiance B / statut
 brut) et la **fidélité** : la valeur gravée est recalculée indépendamment depuis
 les sources brutes (seeds pilotes et CSV des lots, source comparée + NASA POWER
 de la même grandeur), même formule ``(x - nasa)/nasa*100``.
@@ -44,15 +46,23 @@ from kuma_data_core.db.seeds import series_pvgis_era5_dni_mensuel_civ as era5_dn
 from kuma_data_core.db.seeds import series_pvgis_era5_ghi_mensuel_civ as era5_ghi
 from kuma_data_core.db.seeds import series_pvgis_sarah3_dni_mensuel_civ as sarah3_dni
 from kuma_data_core.db.seeds import series_pvgis_sarah3_ghi_mensuel_civ as sarah3_ghi
+from kuma_data_core.db.seeds.lots_civ import FIN_EXTENSION
 from tests.integration.db.mesures_brutes import mesures_mensuelles
 
 pytestmark = pytest.mark.integration
 
 ANNEE_DEBUT_COMMUN = 2005
-ANNEE_FIN_COMMUN = 2020
 # 3 pilotes + 139 localités des lots nationaux (ADR-0017).
 _LOCALITES = set(mesures_mensuelles(np_ghi))
-NB_LIGNES_ATTENDU = 192 * len(_LOCALITES)  # 192 mois x 142 localités
+
+
+def _fin(ecart: Ecart) -> int:
+    """Dernière année commune avec NASA : 2023 (SARAH-3, ERA5) ou 2025 (CAMS)."""
+    return min(FIN_EXTENSION[ecart.seed_compare.SOURCE_CODE], FIN_EXTENSION["nasa_power"])
+
+
+def _nb_lignes(ecart: Ecart) -> int:
+    return (_fin(ecart) - ANNEE_DEBUT_COMMUN + 1) * 12 * len(_LOCALITES)
 
 
 class Ecart(NamedTuple):
@@ -139,12 +149,13 @@ def test_series_calculees(db_session: Session, ecart: Ecart) -> None:
         assert r.source == "kuma_calculs", r.code
         assert r.methode_collecte == "calcul_derive", r.code
         assert r.granularite is None, r.code
-        assert str(r.periode_debut) == "2005-01-01" and str(r.periode_fin) == "2020-12-31"
+        assert str(r.periode_debut) == "2005-01-01"
+        assert str(r.periode_fin) == f"{_fin(ecart)}-12-31"
 
 
 @pytest.mark.parametrize("ecart", _ECARTS, ids=_id)
 def test_completude_et_fenetre_commune(db_session: Session, ecart: Ecart) -> None:
-    """576 lignes mensuelles, strictement sur la fenêtre commune 2005-2020."""
+    """Lignes mensuelles strictement sur la fenêtre commune 2005 → fin commune avec NASA."""
     rows = db_session.execute(
         text(
             """
@@ -155,13 +166,13 @@ def test_completude_et_fenetre_commune(db_session: Session, ecart: Ecart) -> Non
         ),
         {"c": ecart.grandeur_code},
     ).all()
-    assert len(rows) == NB_LIGNES_ATTENDU
+    assert len(rows) == _nb_lignes(ecart)
     for r in rows:
         assert r.periode_type == "mensuel"
         assert r.annee_debut == r.annee_fin  # ligne mensuelle : année unique
         assert r.mois is not None and 1 <= r.mois <= 12
     annees = {r.annee_debut for r in rows}
-    assert annees == set(range(ANNEE_DEBUT_COMMUN, ANNEE_FIN_COMMUN + 1))
+    assert annees == set(range(ANNEE_DEBUT_COMMUN, _fin(ecart) + 1))
     # Aucun mois NASA-seul (1991-2004) n'a fui dans l'écart.
     assert min(annees) == ANNEE_DEBUT_COMMUN
 
@@ -178,7 +189,7 @@ def test_invariants_confiance_statut(db_session: Session, ecart: Ecart) -> None:
         ),
         {"c": ecart.grandeur_code},
     ).all()
-    assert len(rows) == NB_LIGNES_ATTENDU
+    assert len(rows) == _nb_lignes(ecart)
     for r in rows:
         assert r.niveau_confiance_derive == "B"
         assert r.statut == "brut"
@@ -189,7 +200,7 @@ def test_invariants_confiance_statut(db_session: Session, ecart: Ecart) -> None:
 def test_valeurs_fideles_au_calcul(db_session: Session, ecart: Ecart) -> None:
     """Chaque écart gravé = recalcul indépendant depuis les deux seeds bruts."""
     attendu = _ecart_attendu(ecart)
-    assert len(attendu) == NB_LIGNES_ATTENDU  # les sources brutes elles-mêmes
+    assert len(attendu) == _nb_lignes(ecart)  # les sources brutes elles-mêmes
     rows = db_session.execute(
         text(
             """
@@ -201,7 +212,7 @@ def test_valeurs_fideles_au_calcul(db_session: Session, ecart: Ecart) -> None:
         ),
         {"c": ecart.grandeur_code},
     ).all()
-    assert len(rows) == NB_LIGNES_ATTENDU
+    assert len(rows) == _nb_lignes(ecart)
     for r in rows:
         cle = (r.localite, r.annee, r.mois)
         assert cle in attendu, cle

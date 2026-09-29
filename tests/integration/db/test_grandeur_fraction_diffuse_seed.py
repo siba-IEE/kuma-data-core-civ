@@ -1,10 +1,11 @@
 """Tests d'intégration de la grandeur ``fraction_diffuse`` (migrations 0024 et 0029).
 
 Fraction diffuse DHI/GHI NASA POWER aux **142 localités** (3 pilotes, ADR-0014 ;
-139 localités des lots nationaux, ADR-0017), mensuelle et annuelle 2001-2020
+139 localités des lots nationaux, ADR-0017), mensuelle et annuelle 2001-2025
+(prolongée au-delà de 2020 par la migration 0032, ADR-0018)
 (couverture du DHI NASA), matérialisée dans ``grandeurs_metier``. Vérifie le
 contrat (grandeur ``stockee`` sans dimension, séries ``calcul_derive`` de
-``kuma_calculs``), la complétude (240 mois et 20 ans par localité), le domaine
+``kuma_calculs``), la complétude (300 mois et 25 ans par localité), le domaine
 physique [0, 1] et la **fidélité** : chaque valeur gravée est recalculée
 indépendamment depuis les sources brutes NASA (seeds pilotes et CSV des lots) —
 ``Σ DHI / Σ GHI`` sur les jours de la période, reconstruit depuis les moyennes
@@ -29,8 +30,8 @@ pytestmark = pytest.mark.integration
 GRANDEUR_CODE = "fraction_diffuse"
 # 3 pilotes + 139 localités des lots nationaux (ADR-0017).
 _LOCALITES = set(mesures_mensuelles(np_ghi))
-NB_MENSUEL = 240 * len(_LOCALITES)  # 240 mois x 142 localités
-NB_ANNUEL = 20 * len(_LOCALITES)  # 20 ans x 142 localités
+NB_MENSUEL = 300 * len(_LOCALITES)  # 300 mois (2001-2025) x 142 localités
+NB_ANNUEL = 25 * len(_LOCALITES)  # 25 ans x 142 localités
 
 
 def _par_localite(seed: ModuleType) -> dict[str, dict[tuple[int, int], float]]:
@@ -40,7 +41,7 @@ def _par_localite(seed: ModuleType) -> dict[str, dict[tuple[int, int], float]]:
 def _attendu() -> tuple[dict[tuple[str, int, int], float], dict[tuple[str, int], float]]:
     """Recalcule mensuel (moy DHI / moy GHI) et annuel (pondéré par les jours).
 
-    Intersection des deux sources : le DHI NASA couvre 2001-2020, le GHI 1991-2020.
+    Intersection des deux sources : le DHI NASA couvre 2001-2025, le GHI 1991-2025.
     """
     dhi, ghi = _par_localite(np_dhi), _par_localite(np_ghi)
     mensuel: dict[tuple[str, int, int], float] = {}
@@ -82,7 +83,7 @@ def test_grandeur_referentiel(db_session: Session) -> None:
 
 
 def test_series_calculees(db_session: Session) -> None:
-    """3 séries calcul_derive, source kuma_calculs, période 2001-2020."""
+    """Séries calcul_derive, source kuma_calculs, période 2001-2025."""
     rows = db_session.execute(
         text(
             """
@@ -98,7 +99,7 @@ def test_series_calculees(db_session: Session) -> None:
     for r in rows:
         assert r.source == "kuma_calculs" and r.methode_collecte == "calcul_derive"
         assert r.granularite is None
-        assert str(r.periode_debut) == "2001-01-01" and str(r.periode_fin) == "2020-12-31"
+        assert str(r.periode_debut) == "2001-01-01" and str(r.periode_fin) == "2025-12-31"
 
 
 def test_completude_domaine_confiance(db_session: Session) -> None:
@@ -120,7 +121,7 @@ def test_completude_domaine_confiance(db_session: Session) -> None:
         assert r.niveau_confiance_derive == "B" and r.statut == "brut"
         assert r.version_formule == 1 and r.annee_debut == r.annee_fin
         assert (r.mois is None) == (r.periode_type == "annuel")
-    assert {r.annee_debut for r in rows} == set(range(2001, 2021))
+    assert {r.annee_debut for r in rows} == set(range(2001, 2026))
 
 
 def test_valeurs_fideles_au_calcul(db_session: Session) -> None:
