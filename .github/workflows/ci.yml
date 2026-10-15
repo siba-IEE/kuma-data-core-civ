@@ -103,10 +103,13 @@ jobs:
   tests-integration:
     name: Tests d'intégration
     runs-on: ubuntu-latest
-    # 30 min : le rejeu integral inclut le backfill journalier profondeur
-    # (migration 107, 4 147 830 insertions, trigger d'audit par ligne) en plus
-    # de l'horaire pilote live. Mesure locale du seul backfill : 19 min.
-    timeout-minutes: 30
+    # 120 min : le rejeu intégral 0001 -> head grave hors ligne, depuis les CSV
+    # committés, environ 1 million de mesures mensuelles et 20 millions de
+    # mesures journalières (ADR-0015 à ADR-0033). Mesures locales, Postgres 16 sans
+    # fsync : environ 14 min jusqu'à 0044, 15 min pour le journalier des
+    # départements (0046-0049), 4 min pour 0050-0052, puis 5 min de tests. Sur un
+    # runner standard, avec fsync, compter le double.
+    timeout-minutes: 120
     needs: [lint, type-check]
 
     # Service container natif GitHub Actions : un PostgreSQL 16-alpine
@@ -163,10 +166,19 @@ jobs:
       - name: Synchroniser les dépendances
         run: uv sync --group dev --frozen
 
+      - name: Libérer de l'espace disque
+        # La base complète dépasse 10 Go (mesures, index, journal d'audit des
+        # migrations antérieures à l'audit par série, ADR-0031) : on retire des
+        # outils préinstallés inutiles ici avant de graver.
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
       - name: Appliquer les migrations Alembic
-        # Instance Côte d'Ivoire : baseline schéma squashée + référentiels +
-        # localités. Aucune migration d'ingestion -> `alembic upgrade head`
-        # n'exige aucun accès réseau.
+        # Instance Côte d'Ivoire : schéma, référentiels, localités, puis séries et
+        # mesures gravées depuis les CSV gzip committés et grandeurs dérivées
+        # calculées en SQL. Toutes les migrations sont hors ligne : `alembic
+        # upgrade head` n'exige aucun accès réseau.
         run: uv run alembic upgrade head
 
       - name: Vérifier la cohérence Alembic / modèles SQLAlchemy
