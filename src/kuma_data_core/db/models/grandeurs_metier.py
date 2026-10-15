@@ -268,6 +268,15 @@ class GrandeurMetier(Base):
             "version_formule",
             postgresql_where=text("valide_au IS NULL"),
         ),
+        # Lecture d'une série dérivée par son code (API ``/v1/series``) : sans cet
+        # index, chaque lecture parcourt toute la table (migration 0044, ADR-0029).
+        Index(
+            "idx_grandeurs_metier_serie_courantes",
+            "series_metadonnees_id",
+            "annee_debut",
+            "mois",
+            postgresql_where=text("valide_au IS NULL"),
+        ),
         # Commentaire de table porté sur l'ORM pour cohérence avec la
         # migration 023 (alembic check).
         {

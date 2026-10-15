@@ -7,6 +7,64 @@ le projet suit le versionnement sémantique.
 
 ### Ajouté
 
+- Jalon 2 — **météo NASA POWER** : température, humidité relative, vent à 2 et
+  10 m, précipitations (MERRA-2, 1991-2025) et albédo de surface (CERES,
+  2001-2025). **Mensuel aux 142 localités** (migration 0034, ADR-0019 : 852
+  séries, 340 800 mesures) et **journalier aux 34 localités** pilotes + régions
+  (migration 0035, ADR-0020 : 204 séries, 2 483 734 mesures par `COPY`). Unités
+  servies vérifiées contre le référentiel, aucune conversion. Constats :
+  humidité très liée à la latitude (r = −0,97), température surtout liée à
+  l'altitude du pixel ; MERRA-2 ne distingue que 76 séries sur 111 départements.
+  **Pluie NASA aberrante gravée telle quelle, avec mise en garde** : San-Pédro
+  726,74 mm le 16/09/2022 (ERA5 : 0,9 mm), septembre 2022 anormal dans l'ouest,
+  et jours de pluie > 50 mm passés d'environ 4 par an (1991-2015) à 40-55 par an
+  depuis 2017 sans hausse comparable du cumul annuel (cause non établie).
+- Jalon 2 — **météo ERA5 du CDS Copernicus** (migration 0036, ADR-0021) :
+  température à 2 m, vent à 10 m (moyenne des vitesses) et précipitations,
+  1991-2025, aux 142 localités (426 séries, 178 920 mesures), source
+  `ecmwf_era5`. Humidité non gravée (recalcul depuis les moyennes mensuelles
+  biaisé de −1,8 point) ; albédo ERA5 non pertinent. Triangulation avec NASA :
+  ERA5 +0,27 °C, vent −14 %, pluie −6,6 %.
+- Jalon 3 — **heures équivalentes pleines et productible spécifique
+  théorique** (migration 0038, ADR-0023) aux 142 localités pour les 4 sources de
+  GHI, mensuel et annuel (1 136 séries, 347 048 lignes) ; équivalence avec la
+  définition journalière héritée démontrée (écart ≤ 5·10⁻³ h_eq). HEP annuel
+  moyen de 1 772 (NASA) à 2 001 h_eq (SARAH-3) ; dispersion inter-source
+  médiane de 13,5 % par localité.
+- Jalon 3 — **variabilité journalière du GHI** (migration 0039, ADR-0024) aux
+  34 localités, 1991-2025 (1 190 lignes), et **fraction diffuse CAMS**
+  (migration 0040, ADR-0025), deuxième source aux 142 localités, 2005-2025
+  (38 766 lignes) : 6,3 % sous NASA en moyenne, nettement plus basse en
+  Harmattan au nord.
+- Jalon 3 — **indice de clarté `kt`** (migration 0041, ADR-0026) aux 142
+  localités pour les 4 sources, mensuel et annuel (568 séries, 173 524 lignes) ;
+  `H0` de Duffie & Beckman (Spencer, 1361 W/m²), validé contre `TOA_SW_DWN` de
+  NASA (biais −0,01 %). Janvier le plus clair, août le plus couvert partout.
+- Jalon 3 — **dégénérescence de pixel matérialisée** (migration 0042, ADR-0027) :
+  une ligne par série mensuelle brute (familles détectées en base) ; NASA ne
+  distingue que 35 séries sur 142 localités, les groupes coïncident exactement
+  avec les cellules de 1°. La grandeur passe en `stockee`.
+- Jalon 3 — **grandeurs métier exposées par l'API sur les données nationales**
+  (ADR-0028) : POA, productibles, P50/P90 (`ghi_exceedance`, série couvrant la
+  normale 1991-2020, années complètes) aux 142 localités, incertitude
+  inter-source ; compagnes cherchées par granularité et recouvrement de période ;
+  erreurs explicites quand une donnée manque.
+- **API des données nationales** (ADR-0029) : résolution au point sur des séries
+  couvrant la normale (404 partout auparavant), recherche de localités `?q=`,
+  filtre `granularite`, pagination des mesures (`pagination_mesures`, en-tête
+  `X-Kuma-Mesures-Total`, auparavant 1 000 jours renvoyés sans le signaler) ;
+  index de lecture des séries dérivées (migration 0044).
+
+### Modifié
+
+- **Mise en garde ERA5 précisée** (migration 0043, ADR-0018, ADR-0021) : le saut
+  de 2021 vient de la réanalyse ERA5 elle-même (rayonnement ERA5 du CDS +3,6 %,
+  rapport PVGIS / CDS stable entre 0,996 et 0,999), pas du traitement PVGIS. La
+  phrase est réécrite sur les 994 séries qui la portent (ERA5 brutes, écarts,
+  HEP, productible et `kt` dérivés d'ERA5).
+
+### Ajouté (avant le 2026-10-15)
+
 - **Mise en garde ERA5 dans les données** (migration 0033, ADR-0018) : le saut
   probable du produit PVGIS-ERA5 en 2021 est signalé dans la note publique des
   568 séries ERA5 (brutes GHI et DNI, écarts ERA5 − NASA, 142 localités).

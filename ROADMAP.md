@@ -62,6 +62,21 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
   - [x] **Lot journalier** NASA POWER : GHI 1991-2020, DNI et DHI 2001-2020
         aux 3 pilotes + 31 régions, 869 312 mesures (migration 0026,
         ADR-0016) ; cohérent avec le mensuel à l'arrondi près.
+- [x] **Météo** (grandeurs du référentiel `t2m`, `rh2m`, `vent_2m`,
+      `vent_10m`, `precipitation`, `albedo_surface`) :
+  - [x] NASA POWER **mensuel aux 142 localités** (MERRA-2 1991-2025, albédo
+        CERES 2001-2025), 852 séries, 340 800 mesures (migration 0034,
+        [ADR-0019](decisions/0019-meteo-nasa-power-mensuelle.md)).
+  - [x] NASA POWER **journalier aux 34 localités** (pilotes + régions), 204
+        séries, 2 483 734 mesures (migration 0035,
+        [ADR-0020](decisions/0020-meteo-nasa-power-journaliere.md)) — entrées
+        de la correction thermique, des degrés-jours, de l'humidex, de la
+        salissure et du POA bifacial. Pluie NASA aberrante gravée avec mise en
+        garde (septembre 2022, hausse des fortes pluies depuis 2017).
+  - [x] **ERA5 du CDS** (2ᵉ source) : température, vent à 10 m, pluie,
+        1991-2025, 142 localités (migration 0036,
+        [ADR-0021](decisions/0021-meteo-era5-cds.md)) ; humidité ERA5 non
+        gravée (biais du recalcul mensuel).
 - [ ] Chaîne d'ingestion reproductible.
   - [x] Ingesteur NASA POWER mensuel (`scripts/ingest_nasa_power_mensuel.py`,
         paramétré par grandeur GHI/DNI/DHI, hors-ligne → seed → migration ;
@@ -103,8 +118,29 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
       inter-sources et la fraction diffuse étendus aux 142 localités
       (migrations 0028-0029, [ADR-0017](decisions/0017-grandeurs-derivees-lots-nationaux.md)) ;
       NASA ressort aberrant bas du DNI dans 142 localités sur 142.
+- [x] **Heures équivalentes pleines et productible spécifique théorique**
+      aux 142 localités, 4 sources (migration 0038,
+      [ADR-0023](decisions/0023-hep-productible-theorique.md)).
+- [x] **Variabilité journalière** du GHI (34 localités, migration 0039,
+      [ADR-0024](decisions/0024-variabilite-journaliere-ghi-nasa.md)) et
+      **fraction diffuse CAMS** (142 localités, migration 0040,
+      [ADR-0025](decisions/0025-fraction-diffuse-cams.md)).
+- [x] **Indice de clarté `kt`** aux 142 localités, 4 sources (migration 0041,
+      [ADR-0026](decisions/0026-indice-de-clarte-kt.md)).
+- [x] **Dégénérescence de pixel** matérialisée (migration 0042,
+      [ADR-0027](decisions/0027-degenerescence-pixel.md)) : NASA ne distingue
+      que 35 séries sur 142 localités.
+- [x] **Mise en garde ERA5 précisée** : le saut de 2021 vient de la réanalyse
+      elle-même (migration 0043, ADR-0021).
 - [ ] Grandeurs métier calculées (POA, productible, P50/P90, salissure, PR
       réaliste) exposées par l'API.
+  - [x] POA, productibles, P50/P90 et incertitude inter-source servis sur les
+        données nationales ([ADR-0028](decisions/0028-grandeurs-api-series-prolongees.md)) ;
+        API des séries et localités (résolution, recherche, pagination,
+        [ADR-0029](decisions/0029-exposition-api-donnees-nationales.md)).
+  - [ ] Correction thermique, degrés-jours, humidex, salissure et PR réaliste
+        vérifiés sur la météo journalière et les particules.
+  - [ ] POA et productibles pour les 108 départements sans journalier.
 - [ ] Contrôle qualité horaire.
 
 ## Jalon 4 : terrain (confiance A)
