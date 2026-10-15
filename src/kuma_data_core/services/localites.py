@@ -56,24 +56,20 @@ def _charger_coordonnees() -> dict[str, tuple[float, float]]:
 def coordonnees_localite(code: str) -> tuple[float, float]:
     """Renvoie le tuple ``(latitude, longitude)`` pour une localite Kuma.
 
-    Le helper accepte n'importe quel code present en table
-    ``localites`` (20 villes Guinee seedees par migration, cf.
-    ``localites_seed_data.py``), pas uniquement les 6 villes pilotes.
-    Le sous-ensemble pilotes (Conakry-Kaloum, Kindia, Mamou, Labe,
-    Kankan, Nzerekore) est applique par les enums Pydantic des
-    endpoints API consommateurs.
+    Le helper accepte n'importe quel code actif de la table
+    ``localites`` portant des coordonnees, quel que soit son pays :
+    aucune liste de villes n'est codee.
 
     Args:
-        code : code naturel de la localite (ex. ``"gin_kindia"``,
-            ``"gin_conakry_kaloum"``).
+        code : code naturel complet de la localite (``<pays>_<slug>``).
 
     Returns:
         Tuple ``(latitude_deg, longitude_deg)`` en degres decimaux WGS84.
 
     Raises:
         KeyError : si ``code`` n'est pas present dans la table
-            ``localites`` ou n'a pas de coordonnees. En pratique, la
-            validation amont par Pydantic ``Literal[...]`` empeche ce
-            cas pour les codes acceptes par l'API.
+            ``localites``, est inactif ou n'a pas de coordonnees
+            (racine continentale par exemple). L'appelant traduit ce
+            cas en erreur explicite (``/v1/horaire`` : 404).
     """
     return _charger_coordonnees()[code]

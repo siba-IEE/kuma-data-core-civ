@@ -55,8 +55,9 @@ class LocaliteListee(BaseModel):
     nom: str
 
     # === Type et hiérarchie ==============================================
-    type_localite: str  # enum : continent, region_supranationale, pays,
-    #                     region_administrative, commune, site
+    type_localite: str  # enum generique (ADR-0005) : continent,
+    #                     region_supranationale, pays, region_administrative,
+    #                     prefecture, commune, site
     parent_id: int | None
     parent_code: str | None  # dénormalisé via self-JOIN (LEFT JOIN
     #                          localites P ON L.parent_id = P.id)
@@ -72,7 +73,7 @@ class LocaliteListee(BaseModel):
     annee_population: int | None
 
     # === Métadonnées techniques ==========================================
-    fuseau_horaire: str | None  # IANA TZ (e.g. "Africa/Conakry")
+    fuseau_horaire: str | None  # IANA TZ (ex. "Africa/Abidjan")
 
     # === Audit (renommé public) ==========================================
     created_at: datetime  # <- cree_le
@@ -119,9 +120,9 @@ class CelluleResolution(BaseModel):
     """Cellule de la grille de climatologie contenant le point.
 
     Grille de la source de climatologie mensuelle : 1 degre x 1 degre,
-    frontieres aux degres entiers (verification empirique 2026-07-20 :
-    serie de Kerouane vs releve au point de Tokounou, meme cellule,
-    ecart nul sur les 12 moyennes mensuelles 1991-2020).
+    frontieres aux degres entiers. Convention verifiee sur donnees :
+    les localites d'une meme cellule portent des series identiques
+    (ADR-0004, ADR-0029).
     """
 
     lat_min: float

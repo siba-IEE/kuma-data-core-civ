@@ -3,12 +3,13 @@
 Deux endpoints :
 
 - ``GET /v1/series`` (authentifie) : listing des series disponibles
-  (filtrage par localite / grandeur / source / actif, pagination
-  offset-based limit=100/max=1000).
+  (filtrage par localite / grandeur / source / granularite / actif,
+  pagination offset-based limit=100/max=1000).
 - ``GET /v1/series/{code_serie}`` (authentifie) : detail d'une serie
   identifiee par son code naming, avec ses mesures resolues via
   ``resolve_table_from_series_metadata``.
-  Pagination limit=1000/max=10 000, filtre temporel ``from``/``to``,
+  Pagination limit=1000/max=10 000 (total de la fenetre expose dans
+  ``pagination_mesures``, ADR-0029), filtre temporel ``from``/``to``,
   format JSON ou CSV.
 
 Couvre les 3 tables-cibles :
@@ -39,9 +40,11 @@ from kuma_data_core.api.services.serie_lecture import (
 )
 from kuma_data_core.api.v1.schemas.series import (
     GrandeurMetierValeur,
+    Granularite,
     MesureJournaliere,
     MesureLue,
     MesureMensuelle,
+    PaginationMesures,
     SerieDetail,
     SerieListee,
     SerieListeePaginee,
@@ -59,6 +62,9 @@ _LIMIT_DEFAUT_DETAIL: int = 1000
 _LIMIT_MAX_DETAIL: int = 10_000
 
 _FORMATS_SUPPORTES: tuple[str, ...] = ("json", "csv")
+
+_ENTETE_TOTAL_MESURES: str = "X-Kuma-Mesures-Total"
+"""En-tete de la reponse CSV du detail : total des mesures de la fenetre."""
 
 
 # === Helpers ==============================================================
@@ -120,16 +126,29 @@ def _valider_format(format_demande: str) -> str:
         "Retourne la liste paginee des series presentes dans "
         "`series_metadonnees`, dans une envelope "
         "`{items, total, limit, offset}`. Filtrage optionnel par "
-        "localite, grandeur, source, ou statut actif. Cf. ADR-0001."
+        "localite, grandeur, source, granularite ou statut actif. "
+        "Cf. ADR-0001, ADR-0029."
     ),
 )
 def lister_series(
     _cle: CleApiValidee,
     session: Annotated[Session, Depends(obtenir_session)],
-    localite: Annotated[str | None, Query(description="Code localite (ex. gin_kindia)")] = None,
-    grandeur: Annotated[str | None, Query(description="Code grandeur (ex. ghi, hep)")] = None,
+    localite: Annotated[
+        str | None, Query(description="Code localite complet (`<pays>_<slug>`)")
+    ] = None,
+    grandeur: Annotated[str | None, Query(description="Code grandeur (ex. ghi, dni)")] = None,
     source: Annotated[
         str | None, Query(description="Code source (ex. nasa_power, kuma_calculs)")
+    ] = None,
+    granularite: Annotated[
+        Granularite | None,
+        Query(
+            description=(
+                "Granularite des mesures brutes : journalier, mensuel ou "
+                "horaire. Les grandeurs calculees (kuma_calculs) n'ont pas "
+                "de granularite : filtrer par source."
+            )
+        ),
     ] = None,
     actif: Annotated[
         bool | None, Query(description="Filtre actif (TRUE/FALSE), defaut TRUE")
@@ -156,6 +175,9 @@ def lister_series(
     if source is not None:
         clauses.append("s.code = :source_code")
         params["source_code"] = source
+    if granularite is not None:
+        clauses.append("sm.granularite = :granularite")
+        params["granularite"] = granularite
     if actif is not None:
         clauses.append("sm.actif = :actif")
         params["actif"] = actif
@@ -199,6 +221,7 @@ def lister_series(
                 s.url AS source_url,
                 sm.periode_debut,
                 sm.periode_fin,
+                sm.granularite,
                 sm.methode_collecte,
                 sm.note_publique AS notes_fr,
                 sm.cree_le AS created_at,
@@ -235,6 +258,7 @@ def lister_series(
             source_url=r.source_url,
             periode_debut=r.periode_debut,
             periode_fin=r.periode_fin,
+            granularite=r.granularite,
             methode_collecte=r.methode_collecte,
             notes_fr=r.notes_fr,
             created_at=r.created_at,
@@ -249,14 +273,31 @@ def lister_series(
 # === Endpoint detail ======================================================
 
 
+def _compter(session: Session, from_sql: str, clauses: list[str], params: dict[str, object]) -> int:
+    """Compte les mesures de la fenetre (meme filtre que la page, sans pagination).
+
+    Requete separee, comme le ``total`` des listings (ADR-0001). Sur
+    les tables de mesures brutes, l'index partiel ``(serie_id, ...)
+    WHERE valide_au IS NULL`` la rend negligeable ; sur
+    ``grandeurs_metier``, faute d'index par serie, elle refait le
+    parcours de la table (index propose, ADR-0029).
+    """
+    filtres = {k: v for k, v in params.items() if k not in ("limit", "offset")}
+    total = session.execute(
+        text(f"SELECT COUNT(*) FROM {from_sql} WHERE {' AND '.join(clauses)}"),
+        filtres,
+    ).scalar_one()
+    return int(total)
+
+
 def _lire_mesures_journalier(
     session: Session,
     serie_id: int,
     bornes: tuple[date | None, date | None],
     limit: int,
     offset: int,
-) -> list[MesureLue]:
-    """Lit les mesures journalieres depuis ``mesures_ressource``."""
+) -> tuple[list[MesureLue], int]:
+    """Lit une page de mesures journalieres (``mesures_ressource``) et le total."""
     from_d, to_d = bornes
     clauses = ["mr.serie_id = :serie_id", "mr.valide_au IS NULL"]
     params: dict[str, object] = {"serie_id": serie_id, "limit": limit, "offset": offset}
@@ -267,6 +308,7 @@ def _lire_mesures_journalier(
         clauses.append("mr.instant_mesure <= :to_d")
         params["to_d"] = to_d
 
+    total = _compter(session, "mesures_ressource mr", clauses, params)
     rows = session.execute(
         text(
             f"""
@@ -284,7 +326,7 @@ def _lire_mesures_journalier(
         ),
         params,
     ).all()
-    return [
+    mesures: list[MesureLue] = [
         MesureJournaliere(
             instant_mesure=r.instant_mesure,
             valeur=float(r.valeur),
@@ -295,6 +337,7 @@ def _lire_mesures_journalier(
         )
         for r in rows
     ]
+    return mesures, total
 
 
 def _lire_mesures_mensuel(
@@ -303,8 +346,8 @@ def _lire_mesures_mensuel(
     bornes: tuple[date | None, date | None],
     limit: int,
     offset: int,
-) -> list[MesureLue]:
-    """Lit les mesures mensuelles depuis ``mesures_ressource_mensuelles``."""
+) -> tuple[list[MesureLue], int]:
+    """Lit une page de mesures mensuelles (``mesures_ressource_mensuelles``) et le total."""
     from_d, to_d = bornes
     clauses = ["m.serie_id = :serie_id", "m.valide_au IS NULL"]
     params: dict[str, object] = {"serie_id": serie_id, "limit": limit, "offset": offset}
@@ -317,6 +360,7 @@ def _lire_mesures_mensuel(
         params["to_y"] = to_d.year
         params["to_m"] = to_d.month
 
+    total = _compter(session, "mesures_ressource_mensuelles m", clauses, params)
     rows = session.execute(
         text(
             f"""
@@ -334,7 +378,7 @@ def _lire_mesures_mensuel(
         ),
         params,
     ).all()
-    return [
+    mesures: list[MesureLue] = [
         MesureMensuelle(
             annee=int(r.annee),
             mois=int(r.mois),
@@ -346,6 +390,7 @@ def _lire_mesures_mensuel(
         )
         for r in rows
     ]
+    return mesures, total
 
 
 def _lire_mesures_grandeurs_metier(
@@ -354,12 +399,17 @@ def _lire_mesures_grandeurs_metier(
     bornes: tuple[date | None, date | None],
     limit: int,
     offset: int,
-) -> list[MesureLue]:
-    """Lit les valeurs grandeurs_metier via la vue v_grandeurs_metier_courantes.
+) -> tuple[list[MesureLue], int]:
+    """Lit une page de valeurs grandeurs_metier (vue v_grandeurs_metier_courantes) et le total.
 
     La vue applique automatiquement les filtres ``valide_au IS NULL`` +
     ``version_formule = version_formule_actuelle`` + ``statut <> 'deprecie'``
     et expose ``niveau_effectif`` resolu.
+
+    Tri total (``annee_debut``, ``mois``, puis ``annee_fin``,
+    ``periode_type`` et ``id`` en departage) : une serie qui porte a la
+    fois des valeurs annuelles et mensuelles se pagine sans perte ni
+    doublon.
     """
     from_d, to_d = bornes
     clauses = ["v.series_metadonnees_id = :serie_id"]
@@ -373,6 +423,7 @@ def _lire_mesures_grandeurs_metier(
         params["to_y"] = to_d.year
         params["to_m"] = to_d.month
 
+    total = _compter(session, "v_grandeurs_metier_courantes v", clauses, params)
     rows = session.execute(
         text(
             f"""
@@ -383,20 +434,20 @@ def _lire_mesures_grandeurs_metier(
                 v.niveau_effectif, v.statut
             FROM v_grandeurs_metier_courantes v
             WHERE {" AND ".join(clauses)}
-            ORDER BY v.annee_debut, v.mois NULLS FIRST
+            ORDER BY v.annee_debut, v.mois NULLS FIRST, v.annee_fin, v.periode_type, v.id
             LIMIT :limit OFFSET :offset
             """
         ),
         params,
     ).all()
-    return [
+    mesures: list[MesureLue] = [
         GrandeurMetierValeur(
             periode_type=r.periode_type,
             annee_debut=int(r.annee_debut),
             annee_fin=int(r.annee_fin),
             mois=int(r.mois) if r.mois is not None else None,
             version_formule=int(r.version_formule),
-            valeur=float(r.valeur),
+            valeur=float(r.valeur) if r.valeur is not None else None,
             niveau_confiance_derive=r.niveau_confiance_derive,
             niveau_confiance_override=r.niveau_confiance_override,
             niveau_effectif=r.niveau_effectif,
@@ -404,6 +455,7 @@ def _lire_mesures_grandeurs_metier(
         )
         for r in rows
     ]
+    return mesures, total
 
 
 def _serialiser_csv(serie_detail: SerieDetail) -> str:
@@ -567,12 +619,17 @@ def detailler_serie(
 
     bornes = (from_d, to_d)
     mesures: list[MesureLue]
+    total_mesures: int
     if table_cible == TableMesures.JOURNALIER:
-        mesures = _lire_mesures_journalier(session, int(row.id), bornes, limit, offset)
+        mesures, total_mesures = _lire_mesures_journalier(
+            session, int(row.id), bornes, limit, offset
+        )
     elif table_cible == TableMesures.MENSUEL_RESSOURCE:
-        mesures = _lire_mesures_mensuel(session, int(row.id), bornes, limit, offset)
+        mesures, total_mesures = _lire_mesures_mensuel(session, int(row.id), bornes, limit, offset)
     elif table_cible == TableMesures.GRANDEURS_METIER:
-        mesures = _lire_mesures_grandeurs_metier(session, int(row.id), bornes, limit, offset)
+        mesures, total_mesures = _lire_mesures_grandeurs_metier(
+            session, int(row.id), bornes, limit, offset
+        )
     else:  # TableMesures.HORAIRE - servi par l'endpoint dedie /v1/horaire
         raise ExceptionKuma(
             code=CodeErreur.RESSOURCE_INTROUVABLE,
@@ -601,15 +658,23 @@ def detailler_serie(
         source_url=row.source_url,
         periode_debut=row.periode_debut,
         periode_fin=row.periode_fin,
+        granularite=row.granularite,
         methode_collecte=row.methode_collecte,
         notes_fr=row.notes_fr,
         created_at=row.created_at,
         updated_at=row.updated_at,
         actif=row.actif,
         unite_code=row.unite_code,
+        pagination_mesures=PaginationMesures(total=total_mesures, limit=limit, offset=offset),
         mesures=mesures,
     )
 
     if format_sortie == "csv":
-        return Response(content=_serialiser_csv(detail), media_type="text/csv")
+        # Le CSV ne porte que les lignes : le total de la fenetre voyage
+        # en en-tete pour que la pagination reste explicite (ADR-0029).
+        return Response(
+            content=_serialiser_csv(detail),
+            media_type="text/csv",
+            headers={_ENTETE_TOTAL_MESURES: str(total_mesures)},
+        )
     return JSONResponse(content=detail.model_dump(mode="json"))

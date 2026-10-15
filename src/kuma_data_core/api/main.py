@@ -92,6 +92,9 @@ def creer_application() -> FastAPI:
         allow_credentials=False,
         allow_methods=["GET"],
         allow_headers=["Authorization", "Content-Type"],
+        # Total des mesures d'une série paginée, lisible par les clients navigateur
+        # du format CSV (ADR-0029).
+        expose_headers=["X-Kuma-Mesures-Total"],
     )
     # Handlers d'erreur - enregistrement avant les routeurs.
     # Le typage strict de FastAPI 0.115 impose un cast côté add_exception_handler
