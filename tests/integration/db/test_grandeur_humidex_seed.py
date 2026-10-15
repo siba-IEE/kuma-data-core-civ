@@ -10,7 +10,8 @@ annuel), la complétude (420 mois et 35 ans par localité), le domaine et la
 journaliers committés — humidex jour par jour, puis moyenne des jours du mois ou
 de l'année — et coïncide avec la fonction pure du service hérité ; une série se
 lit par l'API. Fige enfin les chiffres de la mise en garde 2024-2025 (note
-publique) et les constats de l'ADR.
+publique) et les constats de l'ADR. Requêtes limitées aux 34 localités : l'humidex
+des 108 départements (migration 0049, ADR-0031) a ses propres tests.
 """
 
 from __future__ import annotations
@@ -37,6 +38,7 @@ pytestmark = pytest.mark.integration
 GRANDEUR_CODE = "humidex"
 _POINTS = {code: (nom, lat) for code, nom, lat, _ in points_journalier()}
 _LOCALITES = set(_POINTS)
+_LOCS = sorted(_LOCALITES)  # lot pilotes + régions ; les départements ont leurs tests (0049)
 ANNEES = range(1991, 2026)
 NB_MENSUEL = len(ANNEES) * 12 * len(_LOCALITES)  # 420 mois x 34 localités = 14 280
 NB_ANNUEL = len(ANNEES) * len(_LOCALITES)  # 35 ans x 34 localités = 1 190
@@ -107,10 +109,10 @@ def _gravees(db_session: Session) -> dict[_Cle, float]:
             SELECT loc.code AS localite, gm.periode_type, gm.annee_debut AS annee, gm.mois,
                    gm.valeur
             FROM grandeurs_metier gm JOIN localites loc ON loc.id = gm.localite_id
-            WHERE gm.grandeur_code = :c
+            WHERE gm.grandeur_code = :c AND loc.code = ANY(:locs)
             """
         ),
-        {"c": GRANDEUR_CODE},
+        {"c": GRANDEUR_CODE, "locs": _LOCS},
     ).all()
     return {(r.localite, r.periode_type, r.annee, r.mois): r.valeur for r in rows}
 
@@ -162,10 +164,10 @@ def test_series_calculees(db_session: Session) -> None:
             FROM series_metadonnees s
             JOIN sources src ON src.id = s.source_id
             JOIN localites loc ON loc.id = s.localite_id
-            WHERE s.grandeur_code = :c
+            WHERE s.grandeur_code = :c AND loc.code = ANY(:locs)
             """
         ),
-        {"c": GRANDEUR_CODE},
+        {"c": GRANDEUR_CODE, "locs": _LOCS},
     ).all()
     assert len(rows) == len(_LOCALITES) == 34
     assert {r.localite for r in rows} == _LOCALITES
@@ -186,10 +188,11 @@ def test_completude_domaine_confiance(db_session: Session) -> None:
             """
             SELECT localite_id, periode_type, mois, valeur, niveau_confiance_derive, statut,
                    version_formule, annee_debut, annee_fin, valide_au
-            FROM grandeurs_metier WHERE grandeur_code = :c
+            FROM grandeurs_metier WHERE grandeur_code = :c AND localite_id IN
+                (SELECT id FROM localites WHERE code = ANY(:locs))
             """
         ),
-        {"c": GRANDEUR_CODE},
+        {"c": GRANDEUR_CODE, "locs": _LOCS},
     ).all()
     assert len(rows) == NB_MENSUEL + NB_ANNUEL
     mois_par_localite: dict[int, set[tuple[int, int]]] = defaultdict(set)
@@ -283,8 +286,12 @@ def test_mise_en_garde_2024_2025(db_session: Session) -> None:
     T2M mensuelle NASA et ERA5 (142 localités) : chiffres de l'ADR-0021.
     """
     note = db_session.execute(
-        text("SELECT DISTINCT note_publique FROM series_metadonnees WHERE grandeur_code = :c"),
-        {"c": GRANDEUR_CODE},
+        text(
+            "SELECT DISTINCT s.note_publique FROM series_metadonnees s "
+            "JOIN localites loc ON loc.id = s.localite_id "
+            "WHERE s.grandeur_code = :c AND loc.code = ANY(:locs)"
+        ),
+        {"c": GRANDEUR_CODE, "locs": _LOCS},
     ).scalar_one()
     humidex = {
         (r.localite, r.annee): r.valeur
@@ -293,9 +300,10 @@ def test_mise_en_garde_2024_2025(db_session: Session) -> None:
                 """
                 SELECT localite_id AS localite, annee_debut AS annee, valeur
                 FROM grandeurs_metier WHERE grandeur_code = :c AND periode_type = 'annuel'
+                  AND localite_id IN (SELECT id FROM localites WHERE code = ANY(:locs))
                 """
             ),
-            {"c": GRANDEUR_CODE},
+            {"c": GRANDEUR_CODE, "locs": _LOCS},
         )
     }
     t2m_journaliere = {
