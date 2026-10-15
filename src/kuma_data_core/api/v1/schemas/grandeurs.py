@@ -317,21 +317,21 @@ class ParametresDegreJourClimatisation(ParametresCommunsF2):
 class ReponseGhiExceedance(BaseModel):
     """Réponse de l'endpoint ``/v1/grandeurs/ghi_exceedance/{code_localite}``.
 
-    Exceedance inter-annuelle de l'irradiation annuelle pour une ville
-    pilote, dérivée de la série GHI mensuelle 1991-2020 NASA POWER.
-    Calculée à la volée à chaque appel, jamais stockée.
+    Exceedance inter-annuelle de l'irradiation annuelle d'une localité,
+    dérivée de la série GHI NASA POWER mensuelle restreinte à la normale
+    1991-2020. Calculée à la volée à chaque appel, jamais stockée.
     """
 
     code_grandeur: Literal["ghi_exceedance"] = "ghi_exceedance"
     code_localite: str = Field(
         ...,
-        description="Code de la localite cible (ex. gin_kankan, gin_conakry_kaloum).",
+        description="Code de la localite cible (cf. /v1/localites).",
     )
     code_serie_source: str = Field(
         ...,
         description=(
-            "Code D-32 de la serie GHI mensuelle source 1991-2020 utilisee "
-            "pour le calcul (ex. gin_kankan_ghi_power_1991_2020)."
+            "Code de la serie GHI NASA POWER mensuelle source (couvrant 1991-2020) "
+            "utilisee pour le calcul."
         ),
     )
     periode: str = Field(
@@ -368,15 +368,15 @@ class ReponseGhiExceedance(BaseModel):
     )
     niveau_confiance: Literal["A", "B", "C"] = Field(
         ...,
-        description="Niveau de confiance du calcul. 'B' (modele satellitaire) en phase 1.",
+        description="Niveau de confiance du calcul. 'B' (modele satellitaire).",
     )
     limite: str = Field(
         ...,
         description=(
             "Avertissement editorial sur la portee du resultat : exceedance "
             "inter-annuelle uniquement, pas un P90 bancable complet. Pour les "
-            "villes co-localisees (dette D-29 Kindia/Mamou), mention "
-            "explicite de l'identite des P50/P90 avec la ville jumelle."
+            "localites partageant leur cellule NASA POWER (jumeaux de pixel, "
+            "series identiques), mention explicite de l'identite de leurs P50/P90."
         ),
     )
 
@@ -571,14 +571,20 @@ class ReponseGrandeurF2(BaseModel):
 class EcartPaireInterSource(BaseModel):
     """Écart inter-source pour une paire (grandeur), agrégé sur 2021-2023.
 
-    Pairwise par grandeur (GHI : NASA vs SARAH-3 ; DNI : NASA vs CAMS), pas un consensus
-    à trois. ``ecart_abs_pct`` (magnitude, médiane) = signal d'incertitude PRIMAIRE ; le
-    signe est purement orientationnel, JAMAIS une correction de biais (anti-absolu).
+    Pairwise par grandeur (GHI : NASA POWER et SARAH-3 ; DNI : NASA POWER et CAMS), pas
+    un consensus à trois. ``ecart_abs_pct`` (magnitude, médiane) = signal d'incertitude
+    PRIMAIRE ; le signe est purement orientationnel, JAMAIS une correction de biais
+    (anti-absolu). Convention : pour ``paire = "A vs B"``, l'écart signé vaut
+    ``(A - B) / B x 100`` (référence nommée en second, au dénominateur).
     """
 
     grandeur: Literal["ghi", "dni"]
     paire: str = Field(
-        ..., description="Couple de sources compare (ex. 'NASA POWER vs PVGIS-SARAH3')."
+        ...,
+        description=(
+            "Couple de sources compare, 'A vs B' (ex. 'PVGIS-SARAH3 vs NASA POWER') : "
+            "l'ecart signe vaut (A - B) / B x 100."
+        ),
     )
     ecart_abs_pct: float = Field(
         ...,
@@ -588,9 +594,9 @@ class EcartPaireInterSource(BaseModel):
     ecart_signe_pct: float = Field(
         ...,
         description=(
-            "Moyenne signee des ecarts mensuels (%). Orientation SEULEMENT (ex. negatif = "
-            "NASA < reference) ; jamais une correction de biais (l'atlas est inter-source / "
-            "relatif, pas l'absolu vs sol, D-67)."
+            "Moyenne signee des ecarts mensuels (%), (A - B) / B pour la paire 'A vs B'. "
+            "Orientation SEULEMENT (positif = A plus haut que B) ; jamais une correction de "
+            "biais (l'atlas est inter-source / relatif, pas l'absolu vs sol)."
         ),
     )
     n_mois: int = Field(
@@ -627,7 +633,7 @@ class ReponseIncertitudeInterSource(BaseModel):
     """
 
     code_grandeur: Literal["incertitude_inter_source"] = "incertitude_inter_source"
-    code_localite: str = Field(..., description="Code de la localite (ex. gin_boffa).")
+    code_localite: str = Field(..., description="Code de la localite (cf. /v1/localites).")
     fenetre: str = Field(..., description="Fenetre commune du triptyque (figee, ex. '2021-2023').")
     ecarts: list[EcartPaireInterSource] = Field(
         ..., description="Ecart inter-source par paire/grandeur (AXE 1, distinct)."
@@ -644,7 +650,7 @@ class ReponseIncertitudeInterSource(BaseModel):
         ...,
         description=(
             "Avertissement editorial : incertitude inter-source / relative, confiance B ; "
-            "ne quantifie PAS l'incertitude absolue vs mesure sol (terrain, D-67)."
+            "ne quantifie PAS l'incertitude absolue vs mesure sol (terrain)."
         ),
     )
 
@@ -670,6 +676,8 @@ class ReponseIncertitudeInterSourceCollection(BaseModel):
     items: list[FichePointIncertitude] = Field(
         ..., description="Fiches par point de l'atlas (chacune = fiche Temps 2 + coordonnees)."
     )
-    total: int = Field(..., ge=0, description="Nombre total de points de l'atlas (34 attendu).")
+    total: int = Field(
+        ..., ge=0, description="Nombre total de points de l'atlas (localites portant un ecart)."
+    )
     limit: int = Field(..., ge=1, description="Taille de page demandee.")
     offset: int = Field(..., ge=0, description="Decalage de pagination.")

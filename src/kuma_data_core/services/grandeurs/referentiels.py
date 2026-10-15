@@ -424,7 +424,9 @@ def _decouvrir_contextes_villes_depuis_db(session: Session) -> list[ContexteVill
     042. Les codes des séries Kuma daily, SARAH-3 et power 1991-2020 suivent
     une convention stable (helpers ``_code_serie_*`` de la migration
     042) qu'on reconstruit ici en interrogeant ``series_metadonnees`` par
-    grandeur + source.
+    grandeur + source. La série climatologique est la série NASA POWER
+    **mensuelle couvrant** la normale 1991-2020 (une série prolongée
+    convient : ses lecteurs ne retiennent que les années 1991-2020).
 
     Args:
         session : session SQLAlchemy active.
@@ -450,8 +452,9 @@ def _decouvrir_contextes_villes_depuis_db(session: Session) -> list[ContexteVill
                     THEN sm.code END) AS code_sarah3,
                 MAX(CASE WHEN s.code = 'nasa_power'
                          AND sm.grandeur_code = 'ghi'
-                         AND sm.periode_debut = '1991-01-01'
-                         AND sm.periode_fin = '2020-12-31'
+                         AND sm.granularite = 'mensuel'
+                         AND sm.periode_debut <= '1991-01-01'
+                         AND (sm.periode_fin IS NULL OR sm.periode_fin >= '2020-12-31')
                     THEN sm.code END) AS code_power_climato
             FROM series_metadonnees sm
             JOIN sources s ON s.id = sm.source_id

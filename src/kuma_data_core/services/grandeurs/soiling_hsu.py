@@ -41,9 +41,10 @@ from kuma_data_core.api.v1.schemas.grandeurs import MesureSoilingJour
 # === Constantes (defauts F1 "soiling de site", documentes) =================
 
 SURFACE_TILT_DEFAUT: float = 10.0
-"""Inclinaison fixe par défaut (degrés) : tilt latitude représentatif Guinée
-(9-10 deg N). F1 soiling de site ; un parc à tilt différent salit différemment.
-Une version F2 paramétrable est une refonte ultérieure consciente."""
+"""Inclinaison fixe par défaut (degrés) : tilt faible usuel des basses latitudes
+nord (ordre de grandeur de la latitude, 5-10 deg N). F1 soiling de site ; un parc à
+tilt différent salit différemment. Une version F2 paramétrable est une refonte
+ultérieure consciente."""
 
 CLEANING_THRESHOLD_DEFAUT_MM: float = 1.0
 """Hauteur de pluie (mm) sur une période d'accumulation suffisante à nettoyer le
