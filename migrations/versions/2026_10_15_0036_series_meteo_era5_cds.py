@@ -1,7 +1,7 @@
 """series_meteo_era5_cds
 
 Revision ID: 0036
-Revises: 0034
+Revises: 0035
 Create Date: 2026-10-15
 
 **Météo ERA5 directe (CDS Copernicus), 142 localités** (ADR-0021) : deuxième
@@ -54,7 +54,7 @@ from kuma_data_core.db.seeds.series_csv import lire_series
 
 # revision identifiers, used by Alembic.
 revision: str = "0036"
-down_revision: str | Sequence[str] | None = "0034"
+down_revision: str | Sequence[str] | None = "0035"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
