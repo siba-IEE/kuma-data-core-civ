@@ -25,6 +25,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from kuma_data_core.api.v1.schemas.parametres import ParametresRequete
+
 # === Constantes module ====================================================
 
 
@@ -52,7 +54,7 @@ DATE_DEBUT_DISPONIBILITE: date = date(2001, 1, 1)
 # === Schémas paramètres ===================================================
 
 
-class ParametresHoraire(BaseModel):
+class ParametresHoraire(ParametresRequete):
     """Paramètres communs aux endpoints du passe-plat horaire.
 
     Le champ ``format_sortie`` est exposé en query string sous le nom

@@ -63,7 +63,7 @@ class _AgregationResultat(TypedDict):
 
 
 def _calculer_coefficient_variation(valeurs: Sequence[float]) -> float:
-    """Coefficient de variation `sigma / μ` (échantillon, ddof=0).
+    """Coefficient de variation `sigma / μ` (écart-type de population, ddof=0).
 
     Args:
         valeurs : séquence non vide de valeurs (typiquement GHI journalier).
