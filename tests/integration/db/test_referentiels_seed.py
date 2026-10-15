@@ -47,8 +47,9 @@ def test_amont_generique_present(db_session: Session) -> None:
     attendus = {"nasa_power", "ecmwf_era5", "sarah3_monthly", "cams_radiation", "kuma_calculs"}
     assert attendus <= codes
     # 14 sources amont génériques (seed 0002) + era5_pvgis ajoutée en 0012
-    # (ERA5 via PVGIS, 3ᵉ source GHI pour la triangulation). CAMS (0014)
-    # réutilise cams_radiation (id 13, seed 0002), et le DNI SARAH-3/ERA5 (0017,
-    # 0018) les sources de leur GHI : aucune source ajoutée.
-    assert "era5_pvgis" in codes
-    assert len(codes) == 15
+    # (ERA5 via PVGIS, 3ᵉ source GHI pour la triangulation) + gpm_imerg ajoutée
+    # en 0052 (IMERG servi par NASA POWER, pluie journalière des épisodes de
+    # lessivage). CAMS (0014) réutilise cams_radiation (id 13, seed 0002), et le
+    # DNI SARAH-3/ERA5 (0017, 0018) les sources de leur GHI : aucune source ajoutée.
+    assert {"era5_pvgis", "gpm_imerg"} <= codes
+    assert len(codes) == 16
