@@ -1,13 +1,17 @@
 """Endpoints `/api/v1/localites` - listing + detail.
 
-Deux endpoints :
+Trois endpoints :
 
 - ``GET /v1/localites`` (authentifie) : listing paginee des localites
-  presentes dans la table ``localites`` (6 villes Guinee +
-  entrees hierarchie : Afrique, Guinee pays, regions administratives).
-  Filtrage optionnel par ``pays_iso3``, ``type_localite``,
-  ``parent_code``, ``actif``. Pagination offset-based
-  ``limit=100/max=1000``.
+  presentes dans la table ``localites`` (toute la hierarchie du
+  referentiel : continent, pays, puis les niveaux administratifs
+  generiques ``region_administrative`` / ``prefecture`` / ``commune``
+  / ``site``, cf. ADR-0005). Filtrage optionnel par ``pays_iso3``,
+  ``type_localite``, ``parent_code``, ``actif`` et recherche textuelle
+  ``q`` (ADR-0029). Pagination offset-based ``limit=100/max=1000``.
+- ``GET /v1/localites/resolution`` (authentifie) : resolution d'un
+  point quelconque vers la localite qui echantillonne sa cellule
+  (ADR-0004).
 - ``GET /v1/localites/{code}`` (authentifie) : detail individuel
   identifie par le code naming (slug ASCII pour racines, ou
   ``<code_pays>_<slug>`` pour entites administratives, cf.
@@ -27,6 +31,9 @@ Cf. ADR-0002 Data Core.
 from __future__ import annotations
 
 import math
+import re
+import unicodedata
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
@@ -56,7 +63,62 @@ _LIMIT_DEFAUT_LISTING: int = 100
 _LIMIT_MAX_LISTING: int = 1000
 
 
+# === Periode de reference de la climatologie (resolution au point) =======
+
+NORMALE_REFERENCE_DEBUT: date = date(1991, 1, 1)
+NORMALE_REFERENCE_FIN: date = date(2020, 12, 31)
+"""Normale climatologique OMM de reference (ADR-0007, ADR-0018).
+
+Une serie est candidate a la resolution si elle **couvre** cette
+periode, et non si elle s'y arrete : les series prolongees au-dela de
+2020 (ADR-0018) gardent la normale 1991-2020 comme reference."""
+
+
 # === Helpers ==============================================================
+
+
+def normaliser_recherche(texte: str) -> str:
+    """Ramene un texte de recherche a la forme des codes de localite.
+
+    Minuscules, accents retires, toute suite de caracteres hors
+    ``[a-z0-9]`` remplacee par ``_`` (bords elagues) : la forme du slug
+    des codes ``<code_pays>_<slug>``. « San-Pédro » donne ``san_pedro``,
+    « Gôh » donne ``goh``. Chaine vide si le texte ne contient ni lettre
+    ni chiffre.
+    """
+    sans_accents = (
+        unicodedata.normalize("NFKD", texte).encode("ascii", "ignore").decode("ascii").lower()
+    )
+    return re.sub(r"[^a-z0-9]+", "_", sans_accents).strip("_")
+
+
+def _echapper_like(texte: str) -> str:
+    r"""Echappe les metacaracteres de ``LIKE`` (``\``, ``%``, ``_``)."""
+    return texte.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def clause_recherche(q: str) -> tuple[str, dict[str, object]]:
+    """Clause SQL de la recherche textuelle ``q`` et ses parametres.
+
+    Deux voies, generiques (aucune table d'accents ni extension) :
+
+    - le **nom** contient le texte tel que saisi (``ILIKE``, insensible
+      a la casse) ;
+    - le **code** contient la forme normalisee du texte
+      (:func:`normaliser_recherche`) : le code etant le slug ASCII du
+      nom, la recherche devient insensible aux accents et a la
+      ponctuation (« Agneby » trouve « Agnéby-Tiassa »).
+
+    Les metacaracteres ``%`` et ``_`` saisis sont echappes : la
+    recherche est litterale.
+    """
+    params: dict[str, object] = {"q_nom": f"%{_echapper_like(q.strip())}%"}
+    voies = ["L.nom ILIKE :q_nom ESCAPE '\\'"]
+    slug = normaliser_recherche(q)
+    if slug:
+        params["q_code"] = f"%{_echapper_like(slug)}%"
+        voies.append("L.code LIKE :q_code ESCAPE '\\'")
+    return "(" + " OR ".join(voies) + ")", params
 
 
 def _to_float_optional(valeur: object) -> float | None:
@@ -102,8 +164,9 @@ def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     description=(
         "Retourne la liste paginee des localites de la table "
         "`localites`, dans une envelope `{items, total, limit, offset}`. "
-        "Filtrage optionnel par pays_iso3, type_localite, parent_code "
-        "ou statut actif. Cf. ADR-0002 Data Core."
+        "Filtrage optionnel par pays_iso3, type_localite, parent_code, "
+        "statut actif, et recherche textuelle `q` sur le nom ou le code. "
+        "Cf. ADR-0002, ADR-0029 Data Core."
     ),
 )
 def lister_localites(
@@ -111,20 +174,38 @@ def lister_localites(
     session: Annotated[Session, Depends(obtenir_session)],
     pays_iso3: Annotated[
         str | None,
-        Query(description="Filtre pays ISO 3166-1 alpha-3 (ex. GIN, SEN)"),
+        Query(description="Filtre pays ISO 3166-1 alpha-3 (ex. CIV, SEN)"),
     ] = None,
     type_localite: Annotated[
         str | None,
         Query(
             description=(
-                "Filtre type : continent, region_supranationale, pays, "
-                "region_administrative, commune, site"
+                "Filtre type (axe generique, ADR-0005) : continent, "
+                "region_supranationale, pays, region_administrative, "
+                "prefecture, commune, site"
             ),
         ),
     ] = None,
     parent_code: Annotated[
         str | None,
-        Query(description="Filtre code de la localite parente (ex. gin pour villes guineennes)"),
+        Query(
+            description=(
+                "Filtre code de la localite parente (ex. code du pays pour "
+                "ses subdivisions de premier niveau)"
+            )
+        ),
+    ] = None,
+    q: Annotated[
+        str | None,
+        Query(
+            min_length=1,
+            max_length=100,
+            description=(
+                "Recherche textuelle : le nom contient le texte (insensible "
+                "a la casse) ou le code contient sa forme normalisee "
+                "(insensible aux accents et a la ponctuation)"
+            ),
+        ),
     ] = None,
     actif: Annotated[
         bool | None, Query(description="Filtre actif (TRUE/FALSE), defaut TRUE")
@@ -156,6 +237,10 @@ def lister_localites(
     if parent_code is not None:
         clauses.append("P.code = :parent_code")
         params["parent_code"] = parent_code
+    if q is not None:
+        clause_q, params_q = clause_recherche(q)
+        clauses.append(clause_q)
+        params.update(params_q)
     if actif is not None:
         clauses.append("L.actif = :actif")
         params["actif"] = actif
@@ -245,8 +330,7 @@ def lister_localites(
         "dont la climatologie mensuelle echantillonne la cellule de "
         "grille contenant le point. Le plus-proche-voisin naif est "
         "faux : la localite la plus proche peut appartenir a une autre "
-        "cellule (cas demontre : Tokounou est plus proche de Kankan "
-        "mais dans la cellule de Kerouane)."
+        "cellule, donc porter une autre climatologie (ADR-0004)."
     ),
 )
 def resoudre_point(
@@ -258,14 +342,15 @@ def resoudre_point(
 ) -> ReponseResolution:
     """Resout un point vers la localite echantillonnant sa cellule.
 
-    Candidates : les localites actives portant une serie climatologie
-    mensuelle active de la grandeur demandee sur la periode de
-    reference 1991-2020 (les points d'ingestion du referentiel). La
-    cellule est celle de la grille de la source de climatologie
-    (1 degre x 1 degre, frontieres aux degres entiers - verification
-    empirique du 2026-07-20 : la moyenne 1991-2020 de la serie de
-    Kerouane reproduit le releve au point de Tokounou, meme cellule,
-    ecart nul sur les 12 mois).
+    Candidates : les localites actives portant une serie mensuelle
+    active de la grandeur demandee qui **couvre** la normale de
+    reference 1991-2020 (les points d'ingestion du referentiel) - une
+    serie prolongee au-dela de 2020 reste candidate (ADR-0018,
+    ADR-0029). La cellule est celle de la grille de la source de
+    climatologie (1 degre x 1 degre, frontieres aux degres entiers).
+    Convention verifiee sur donnees : deux localites d'une meme cellule
+    portent des series identiques, deux cellules distinctes des series
+    distinctes (ADR-0004, ADR-0029).
 
     Si aucune candidate ne partage la cellule du point,
     ``meme_cellule`` vaut ``false`` et la candidate la plus proche est
@@ -285,12 +370,16 @@ def resoudre_point(
               AND sm.actif = TRUE
               AND sm.granularite = 'mensuel'
               AND sm.grandeur_code = :grandeur
-              AND sm.periode_debut = '1991-01-01'
-              AND sm.periode_fin = '2020-12-31'
+              AND sm.periode_debut <= :normale_debut
+              AND (sm.periode_fin IS NULL OR sm.periode_fin >= :normale_fin)
             GROUP BY l.code, l.nom, l.latitude, l.longitude
             """
         ),
-        {"grandeur": grandeur},
+        {
+            "grandeur": grandeur,
+            "normale_debut": NORMALE_REFERENCE_DEBUT,
+            "normale_fin": NORMALE_REFERENCE_FIN,
+        },
     ).all()
     if not rows:
         raise ExceptionKuma(

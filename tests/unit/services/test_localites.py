@@ -36,19 +36,19 @@ def _invalider_cache_entre_tests() -> None:
     _charger_coordonnees.cache_clear()
 
 
-def test_coordonnees_localite_retourne_tuple_pour_6_villes() -> None:
-    """Les 6 codes Kuma (préfixés gin_) retournent un tuple (lat, lon).
+def test_coordonnees_localite_retourne_tuple_pour_tout_code_du_referentiel() -> None:
+    """Tout code complet de la table retourne un tuple (lat, lon), quel que soit le pays.
 
     Verifie le contrat de coordonnees_localite : recherche par code DB
-    complet et retour du tuple float.
+    complet et retour du tuple float, sans liste de villes codee (les
+    codes de plusieurs pays coexistent dans le meme referentiel).
     """
     rows_simules = [
         ("gin_conakry_kaloum", 9.5092, -13.7122),
         ("gin_kankan", 10.3886, -9.3056),
-        ("gin_kindia", 10.04972222, -12.85416667),
-        ("gin_labe", 11.3179, -12.2833),
-        ("gin_mamou", 10.3753, -12.0911),
-        ("gin_nzerekore", 7.75222222, -8.82166667),
+        ("civ_dep_abidjan", 5.41667, -4.03333),
+        ("civ_dep_korhogo", 9.41666667, -5.61666667),
+        ("civ_san_pedro", 4.75, -6.63333333),
     ]
     mock_session = _construire_mock_session(rows_simules)
     mock_factory = MagicMock(return_value=mock_session)
@@ -85,10 +85,10 @@ def test_charger_coordonnees_cache_lru() -> None:
 
 
 def test_coordonnees_localite_code_inconnu_leve_key_error() -> None:
-    """Un code absent de la table leve KeyError (validation amont Pydantic).
+    """Un code absent de la table (ou sans coordonnees) leve KeyError.
 
-    En pratique, la validation Pydantic ``Literal[...]`` sur l'API
-    empeche ce cas. Le test verifie le contrat brut de la fonction.
+    L'appelant traduit ce cas en erreur explicite (``/v1/horaire`` :
+    404). Le test verifie le contrat brut de la fonction.
     """
     rows_simules = [("gin_conakry_kaloum", 9.5092, -13.7122)]
     mock_session = _construire_mock_session(rows_simules)

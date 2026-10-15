@@ -60,10 +60,10 @@ class ParametresHoraire(BaseModel):
     nécessaire pour éviter le shadow du built-in Python ``format``.
     """
 
-    # Toute localite du referentiel (code complet, ex. gin_kankan) ;
-    # les codes courts historiques des 6 villes pilotes restent des
-    # alias de compatibilite, resolus par le handler contre la table
-    # (genericite pays : plus de liste codee).
+    # Toute localite du referentiel (code complet `<pays>_<slug>`) ; le
+    # code court sans prefixe pays reste un alias de compatibilite,
+    # resolu par le handler contre les pays de la table (genericite
+    # pays : ni liste ni prefixe codes).
     localite: str = Field(..., min_length=1, max_length=100, pattern=r"^[a-z0-9_]+$")
     grandeur: Literal[
         "ghi", "dni", "dhi", "t2m", "rh2m", "kt", "vent_2m", "vent_10m", "precipitation"

@@ -12,8 +12,11 @@ Deux fonctionnements, un seul endpoint, la seule différence est le calage :
   serveur et cuit ses facteurs par saison dans la ressource. La loi ne descend
   jamais, seuls ses facteurs au point.
 
-La séquence horaire est plafonnée à la profondeur de l'horaire NASA (2001-2025) ;
-la fenêtre ``annee_min`` / ``annee_max`` permet d'alléger la capsule.
+La séquence horaire est plafonnée à la profondeur stockée de la série horaire
+satellite de la localité ; la fenêtre ``annee_min`` / ``annee_max`` permet
+d'alléger la capsule. Ses bornes ne contrôlent que la plausibilité : une
+période figée (ex. 2001-2025) refuserait à tort toute année ajoutée par une
+édition ultérieure (ADR-0029). Une fenêtre sans donnée répond 404.
 """
 
 from __future__ import annotations
@@ -37,6 +40,10 @@ from kuma_data_core.services.capsule.construire import assembler_capsule
 
 routeur = APIRouter(prefix="/etudes", tags=["etudes"])
 
+_ANNEE_FENETRE_MIN: int = 1900
+_ANNEE_FENETRE_MAX: int = 2100
+"""Bornes de plausibilité de la fenêtre horaire (pas une période de données)."""
+
 
 @routeur.get(
     "/capsule",
@@ -47,11 +54,18 @@ routeur = APIRouter(prefix="/etudes", tags=["etudes"])
         "`kuma-ressource-1`. `calage=0` : capsule brute hors-ligne "
         "(base du Core seule). `calage=1` : ressource calibree en ligne "
         "(appel serveur a serveur a kuma-calage). La sequence horaire "
-        "satellite est plafonnee a 2001-2025 ; `annee_min`/`annee_max` "
-        "fenetrent la profondeur servie."
+        "satellite est plafonnee a la profondeur stockee de la serie "
+        "horaire de la localite ; `annee_min`/`annee_max` fenetrent la "
+        "profondeur servie."
     ),
     responses={
-        404: {"description": "Le point ne se resout sur aucune localite du referentiel."},
+        404: {
+            "description": (
+                "Le point ne se resout sur aucune localite du referentiel, "
+                "ou la localite resolue n'a pas les series requises "
+                "(climatologie mensuelle, sequence horaire satellite)."
+            )
+        },
         503: {"description": "Mode en ligne demande mais kuma-calage indisponible."},
     },
 )
@@ -64,10 +78,20 @@ def assembler_etude_capsule(
         bool, Query(description="1 : ressource calibree en ligne. 0 : capsule brute.")
     ] = False,
     annee_min: Annotated[
-        int | None, Query(ge=2001, le=2025, description="Borne basse de la fenetre horaire.")
+        int | None,
+        Query(
+            ge=_ANNEE_FENETRE_MIN,
+            le=_ANNEE_FENETRE_MAX,
+            description="Borne basse de la fenetre horaire.",
+        ),
     ] = None,
     annee_max: Annotated[
-        int | None, Query(ge=2001, le=2025, description="Borne haute de la fenetre horaire.")
+        int | None,
+        Query(
+            ge=_ANNEE_FENETRE_MIN,
+            le=_ANNEE_FENETRE_MAX,
+            description="Borne haute de la fenetre horaire.",
+        ),
     ] = None,
 ) -> Response:
     """Assemble et rend la ressource au format fichier Kuma."""

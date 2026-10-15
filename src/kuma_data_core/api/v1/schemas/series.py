@@ -17,6 +17,10 @@
 Pattern générique paramétré (1 schéma par catégorie, pas 1 schéma par
 grandeur) - évite un schéma spécifique par série exposée.
 Discrimination via champ littéral `type` (Pydantic discriminated union).
+
+Les bornes des schémas de réponse recopient les contraintes de la base,
+jamais une période d'instance : un schéma plus strict que la base
+transforme une ligne légitime en erreur 500 (ADR-0029).
 """
 
 from __future__ import annotations
@@ -25,6 +29,18 @@ from datetime import date, datetime
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
+
+# === Bornes recopiées des contraintes de la base ==========================
+
+ANNEE_MIN_MENSUELLE: int = 1981
+"""Borne basse de ``ck_mesures_ressource_mensuelles_annee_valide``."""
+
+ANNEE_MAX_MENSUELLE: int = 2099
+"""Borne haute de ``ck_mesures_ressource_mensuelles_annee_valide``."""
+
+Granularite = Literal["journalier", "mensuel", "horaire"]
+"""Valeurs de ``ck_series_metadonnees_granularite_valide`` (NULL pour les
+séries ``kuma_calculs``, routées par source)."""
 
 # === Schémas mesures (union discriminée MesureLue) ========================
 
@@ -45,7 +61,7 @@ class MesureMensuelle(BaseModel):
     """Mesure mensuelle d'une série brute (table ``mesures_ressource_mensuelles``)."""
 
     type: Literal["mensuel"] = "mensuel"
-    annee: int = Field(ge=1991, le=2099)
+    annee: int = Field(ge=ANNEE_MIN_MENSUELLE, le=ANNEE_MAX_MENSUELLE)
     mois: int = Field(ge=1, le=12)
     valeur: float
     niveau_confiance_derive: str = Field(min_length=1, max_length=1)
@@ -55,15 +71,21 @@ class MesureMensuelle(BaseModel):
 
 
 class GrandeurMetierValeur(BaseModel):
-    """Valeur d'une grandeur calculée Kuma (table ``grandeurs_metier``)."""
+    """Valeur d'une grandeur calculée Kuma (table ``grandeurs_metier``).
+
+    Ni ``annee_debut`` ni ``annee_fin`` ne sont bornées en base : le
+    schéma ne les borne pas non plus. ``valeur`` est nullable en base
+    (grandeur non définie sur la période) : ``None`` est transmis tel
+    quel plutôt que de faire échouer la réponse.
+    """
 
     type: Literal["grandeur_metier"] = "grandeur_metier"
     periode_type: Literal["annuel", "mensuel", "statique"]
-    annee_debut: int = Field(ge=1991, le=2099)
-    annee_fin: int = Field(ge=1991, le=2099)
+    annee_debut: int
+    annee_fin: int
     mois: int | None = Field(default=None, ge=1, le=12)
     version_formule: int = Field(ge=1)
-    valeur: float
+    valeur: float | None
     niveau_confiance_derive: str = Field(min_length=1, max_length=1)
     niveau_confiance_override: str | None = Field(default=None, min_length=1, max_length=1)
     niveau_effectif: str = Field(min_length=1, max_length=1)
@@ -136,6 +158,10 @@ class SerieListee(BaseModel):
     # === Période et méta éditoriales =====================================
     periode_debut: date
     periode_fin: date | None
+    # Granularité des mesures brutes ; ``None`` pour les grandeurs
+    # calculées (``kuma_calculs``), dont le pas est porté par chaque
+    # valeur (``periode_type``). Ajout rétrocompatible (ADR-0029).
+    granularite: Granularite | None
     methode_collecte: str | None
     notes_fr: str | None
 
@@ -166,6 +192,21 @@ class SerieListeePaginee(BaseModel):
     offset: int = Field(ge=0)
 
 
+class PaginationMesures(BaseModel):
+    """Pagination des mesures du détail d'une série (ADR-0029).
+
+    Le détail renvoie au plus ``limit`` mesures (1000 par défaut) : une
+    série journalière de 35 ans en compte 12 784. ``total`` dit combien
+    de mesures la fenêtre ``from``/``to`` contient, toutes pages
+    confondues - la troncature n'est plus silencieuse. Page suivante :
+    ``offset + limit`` tant que ``offset + limit < total``.
+    """
+
+    total: int = Field(ge=0, description="Mesures de la fenetre from/to, toutes pages confondues.")
+    limit: int = Field(ge=1)
+    offset: int = Field(ge=0)
+
+
 class SerieDetail(SerieListee):
     """Détail d'une série `GET /api/v1/series/{code}` avec mesures (ADR-0001).
 
@@ -181,7 +222,10 @@ class SerieDetail(SerieListee):
       type concret dépend de la table-cible résolue par
       ``resolve_table_from_series_metadata`` (cf.
       ``api/services/serie_lecture.py``).
+    - ``pagination_mesures`` : total de la fenêtre, ``limit`` et
+      ``offset`` appliqués aux ``mesures`` (ADR-0029).
     """
 
     unite_code: str
+    pagination_mesures: PaginationMesures
     mesures: list[MesureLue]

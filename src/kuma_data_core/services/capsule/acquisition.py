@@ -4,11 +4,12 @@ Implémentation concrète de ``SourceCapsule`` (le protocole de ``construire``).
 Lit trois choses au point :
 
 - la **résolution** (lat, lon) → la localité dont la cellule échantillonne le
-  point, et son code de climatologie (même logique que ``/v1/localites/resolution``) ;
+  point, et son code de climatologie (même logique que ``/v1/localites/resolution`` :
+  une série candidate **couvre** la normale 1991-2020, ADR-0029) ;
 - la **climatologie mensuelle** : moyenne par mois calendaire sur 1991-2020 des
   mesures mensuelles de cette série (12 valeurs, kWh/m²/j = HEP) ;
 - la **séquence horaire satellite** : la série GHI horaire NASA de la localité,
-  le brut au point (heure UTC = heure locale en Guinée).
+  le brut au point (heure UTC).
 
 Rien de calé ici : la séquence et la climatologie sortent brutes, le moteur cale
 via le champ ``calage``, présent en ligne seulement. Aucun appel à kuma-calage
@@ -118,7 +119,8 @@ class SourceCore:
                 JOIN series_metadonnees sm ON sm.localite_id = l.id
                 WHERE l.actif AND l.latitude IS NOT NULL AND l.longitude IS NOT NULL
                   AND sm.actif AND sm.granularite = 'mensuel' AND sm.grandeur_code = 'ghi'
-                  AND sm.periode_debut = :debut AND sm.periode_fin = :fin
+                  AND sm.periode_debut <= :debut
+                  AND (sm.periode_fin IS NULL OR sm.periode_fin >= :fin)
                 GROUP BY l.id, l.code, l.nom, l.latitude, l.longitude
                 """
             ),

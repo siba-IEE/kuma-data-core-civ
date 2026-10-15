@@ -11,8 +11,9 @@ Architecture :
 
 1. Validation Pydantic des paramètres (schéma
    :class:`api.v1.schemas.horaire.ParametresHoraire`).
-2. Résolution localité contre le référentiel (code complet nominal,
-   alias courts historiques des villes pilotes en compatibilité).
+2. Résolution localité contre le référentiel (code complet nominal ;
+   en compatibilité, code court sans préfixe pays, résolu contre les
+   pays présents au référentiel).
 3. Appel client externe via
    :func:`external.nasa_power.fetch_hourly` (retry transverse inclus).
 4. Conversion réponse amont -> format Kuma cohérent via
@@ -80,28 +81,55 @@ routeur = APIRouter(prefix="/horaire", tags=["horaire-passe-plat"])
 
 # === Resolution de la localite contre le referentiel ======================
 
-_PREFIXE_ALIAS_HISTORIQUE: str = "gin_"
-"""Prefixe applique aux codes courts HISTORIQUES des 6 villes pilotes
-(kankan, kindia...) pour retrouver le code complet. Compatibilite de
-contrat uniquement : le chemin nominal est le code complet de la
-table ``localites`` (genericite pays, residu 1 du brief de chantier)."""
-
 
 def _resoudre_localite(session: Session, localite: str) -> str:
     """Resout le code de localite du path contre le referentiel.
 
-    Ordre : code complet tel quel dans la table ; sinon alias
-    historique (prefixe gin_). Localite inconnue : 404
-    ``RESSOURCE_LOCALITE_INCONNUE`` (honnete, au lieu du 422 de
-    l'ancienne enumeration fermee).
+    Ordre :
+
+    1. code complet tel quel dans la table (chemin nominal) ;
+    2. compatibilite : code court sans prefixe pays (``kankan`` pour
+       ``gin_kankan``). Le prefixe est le code d'un pays **present au
+       referentiel** (``type_localite = 'pays'``), jamais une constante :
+       la regle vaut pour toute instance (genericite pays, ADR-0029).
+       Un code court qui designe des localites de plusieurs pays est
+       ambigu : 404 avec la liste des candidats.
+
+    Localite inconnue : 404 ``RESSOURCE_LOCALITE_INCONNUE`` (honnete,
+    au lieu du 422 de l'ancienne enumeration fermee).
     """
-    for candidat in (localite, f"{_PREFIXE_ALIAS_HISTORIQUE}{localite}"):
-        existe = session.execute(
-            text("SELECT 1 FROM localites WHERE code = :code AND actif = TRUE"),
-            {"code": candidat},
-        ).first()
-        if existe is not None:
-            return candidat
+    existe = session.execute(
+        text("SELECT 1 FROM localites WHERE code = :code AND actif = TRUE"),
+        {"code": localite},
+    ).first()
+    if existe is not None:
+        return localite
+
+    alias = [
+        str(r.code)
+        for r in session.execute(
+            text(
+                """
+                SELECT l.code
+                FROM localites l
+                JOIN localites p
+                  ON p.type_localite = 'pays' AND l.code = p.code || '_' || :code
+                WHERE l.actif = TRUE
+                ORDER BY l.code
+                """
+            ),
+            {"code": localite},
+        ).all()
+    ]
+    if len(alias) == 1:
+        return alias[0]
+    if len(alias) > 1:
+        raise ExceptionKuma(
+            code=CodeErreur.RESSOURCE_LOCALITE_INCONNUE,
+            message=f"Code court '{localite}' ambigu : utiliser le code complet de la localite.",
+            statut_http=status.HTTP_404_NOT_FOUND,
+            details={"candidats": alias},
+        )
     raise ExceptionKuma(
         code=CodeErreur.RESSOURCE_LOCALITE_INCONNUE,
         message=f"Localite '{localite}' introuvable dans le referentiel.",
@@ -181,18 +209,17 @@ def _chercher_serie_horaire_stockee(
     Renvoie ``(serie_id, periode_debut, periode_fin)`` si une série horaire
     active **portant des mesures stockées** existe pour ce couple, ``None``
     sinon. La jointure sur ``localites.code`` résout le couple
-    indépendamment du naming de la série (exception ``gin_conakry`` vs
-    ``gin_conakry_kaloum``).
+    indépendamment du naming de la série (le code d'une série ne
+    reprend pas toujours le code de sa localité).
 
     La clause ``EXISTS`` écarte les séries « coquilles » (métadonnées
-    actives sans aucune ligne dans ``mesures_ressource_horaires``).
-    Régression observée en production (2026-07-20) : pour (kankan, ghi),
-    deux séries horaires actives coexistent - la série substrat
-    2001-2025 (métadonnées seules) et la série sol terrain 2021-2023
-    (17 520 mesures validées). Le ``LIMIT 1`` sans garde sélectionnait
-    la coquille, dont la période couvre toute fenêtre demandée, et
-    l'endpoint servait 200 avec zéro résultat au lieu de la mesure
-    terrain. Le ``ORDER BY sm.id`` rend la sélection déterministe si
+    actives sans aucune ligne dans ``mesures_ressource_horaires``) :
+    quand une série substrat sans mesure coexiste avec une série sol
+    validée pour le même couple, un ``LIMIT 1`` sans garde
+    sélectionnerait la coquille, dont la période couvre toute fenêtre
+    demandée, et l'endpoint servirait 200 avec zéro résultat au lieu de
+    la mesure terrain (régression observée en production le
+    2026-07-20). Le ``ORDER BY sm.id`` rend la sélection déterministe si
     plusieurs séries portent des mesures.
     """
     row = session.execute(
@@ -351,7 +378,19 @@ def grandeur_horaire(
         )
 
     # Repli passe-plat (relais NASA POWER, non validé éditorialement).
-    latitude, longitude = coordonnees_localite(localite_complet)
+    # Une localité sans coordonnées (racine continentale, entrée
+    # incomplète) n'a pas de point à relayer : 404 explicite, pas 500.
+    try:
+        latitude, longitude = coordonnees_localite(localite_complet)
+    except KeyError as exc:
+        raise ExceptionKuma(
+            code=CodeErreur.RESSOURCE_INTROUVABLE,
+            message=(
+                f"Localite '{params.localite}' sans coordonnees : aucune donnee "
+                "horaire ne peut etre servie pour elle."
+            ),
+            statut_http=status.HTTP_404_NOT_FOUND,
+        ) from exc
     code_amont = code_parametre_amont(params.grandeur)
 
     try:

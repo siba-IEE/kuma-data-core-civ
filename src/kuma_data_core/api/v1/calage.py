@@ -6,9 +6,10 @@ k = 1/(1+biais), provenance et portée de transport. Donnée
 éditoriale de l'édition, lue telle quelle - aucun calcul amont,
 conforme au profil édition figée (D6).
 
-Codes localité complets (``gin_kankan``), alignés sur ``/v1/series``
-et ``/v1/localites``. 404 ``RESSOURCE_INTROUVABLE`` si aucun
-référentiel actif n'existe pour le couple.
+Codes localité complets (``<pays>_<slug>``), alignés sur
+``/v1/series`` et ``/v1/localites``. 404 ``RESSOURCE_INTROUVABLE`` si
+aucun référentiel actif n'existe pour le couple ; une instance sans
+mesure sol publie un listing vide (``GET /v1/calage`` : ``total = 0``).
 """
 
 from __future__ import annotations
