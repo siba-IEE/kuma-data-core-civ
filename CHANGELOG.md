@@ -7,6 +7,20 @@ le projet suit le versionnement sémantique.
 
 ### Ajouté
 
+- Jalon 2/3 — **pluie journalière ERA5 et recoupement de la pluie NASA**
+  (migrations 0050-0051, ADR-0032). Pluie ERA5 du CDS journalière aux 142
+  localités, 1991-2025 (142 séries, 1 815 328 mesures, somme des cumuls horaires
+  sur le jour UTC). Recoupement jour par jour avec NASA, et ponctuel avec CHIRPS
+  et IMERG : aucun des 25 jours-localités NASA au-delà de 200 mm n'est confirmé
+  (ERA5 au plus 19 mm à un jour près ; CHIRPS 0 mm). La hausse des jours
+  > 50 mm vers 2016-2017 est propre à NASA (×12, contre ×1,7 progressif pour
+  ERA5) et coïncide avec un changement documenté du traitement de MERRA-2, qui
+  recale la pluie par pentade sur CMAP « temps réel » (expérimental). Mises en
+  garde précisées sur les 284 séries de pluie NASA et les 142 séries mensuelles
+  de pluie ERA5 (13 mois de raccord ERA5 incohérents, jusqu'à 0,386 mm/jour).
+  La citation « ERA5 : 0,9 mm », issue d'un relevé hors CDS, est corrigée
+  (ERA5 du CDS : 8,3 à 12,8 mm).
+
 - Jalon 2/3 — **journalier aux 108 départements** (migrations 0046-0049,
   ADR-0031) : avec les pilotes, les 111 départements ont un journalier complet.
   Rayonnement NASA POWER (324 séries, 3 352 968 mesures), météo NASA POWER (648
@@ -28,7 +42,7 @@ le projet suit le versionnement sémantique.
   humidité très liée à la latitude (r = −0,97), température surtout liée à
   l'altitude du pixel ; MERRA-2 ne distingue que 76 séries sur 111 départements.
   **Pluie NASA aberrante gravée telle quelle, avec mise en garde** : San-Pédro
-  726,74 mm le 16/09/2022 (ERA5 : 0,9 mm), septembre 2022 anormal dans l'ouest,
+  726,74 mm le 16/09/2022 (ERA5 du CDS : 8,3 à 12,8 mm, ADR-0032), septembre 2022 anormal dans l'ouest,
   et jours de pluie > 50 mm passés d'environ 4 par an (1991-2015) à 40-55 par an
   depuis 2017 sans hausse comparable du cumul annuel (cause non établie).
 - Jalon 2 — **météo ERA5 du CDS Copernicus** (migration 0036, ADR-0021) :

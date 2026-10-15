@@ -22,8 +22,9 @@ Les bornes sont des garde-fous de sanité (rejet à la lecture du CSV), pas des
 valeurs attendues ; la borne basse est 0 pour toutes les grandeurs. Celles des
 précipitations (60 mm/jour en mensuel, 1000 en journalier) couvrent des valeurs
 **aberrantes servies telles quelles** par NASA POWER — San-Pédro, septembre 2022 :
-56,28 mm/jour en moyenne mensuelle, 726,74 mm le 16 (ERA5 : 0,9 mm) — gravées
-sans correction et signalées dans la note publique des séries (ADR-0019).
+56,28 mm/jour en moyenne mensuelle, 726,74 mm le 16 (ERA5 du CDS : 8,3 à 12,8 mm) —
+gravées sans correction et signalées dans la note publique des séries (ADR-0019,
+ADR-0032).
 
 Unités : aucune conversion. L'unité servie par NASA POWER
 (``parameters.<P>.units``) et l'unité de la grandeur au référentiel doivent
