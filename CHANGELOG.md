@@ -7,6 +7,16 @@ le projet suit le versionnement sémantique.
 
 ### Ajouté
 
+- Jalon 3 — **pluie GPM IMERG pour la salissure** (migration 0052, ADR-0033, choix
+  de l'utilisateur) : pluie journalière IMERG (via NASA POWER) aux 142
+  localités, 1998-2025, nouvelle source `gpm_imerg` (142 séries, 1 452 234
+  mesures). Le proxy de salissure et le PR réaliste de l'API la prennent
+  désormais, et jamais la pluie NASA. IMERG est sans rupture (jours > 50 mm
+  ×0,99 entre 1998-2015 et 2017-2025) et ne confirme aucun des 25 jours NASA
+  au-delà de 200 mm (59,4 mm au plus). Les trois derniers mois de 2025 viennent
+  du Late Run (fin du Final Run V07 au 2025-09-30), ce qui est signalé.
+  L'identité de la table des sources est recalée (ids figés 16 et 17).
+
 - Jalon 2/3 — **pluie journalière ERA5 et recoupement de la pluie NASA**
   (migrations 0050-0051, ADR-0032). Pluie ERA5 du CDS journalière aux 142
   localités, 1991-2025 (142 séries, 1 815 328 mesures, somme des cumuls horaires

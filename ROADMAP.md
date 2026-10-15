@@ -86,8 +86,9 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
       [ADR-0032](decisions/0032-pluie-nasa-recoupement-era5.md)) : jours extrêmes
       et rupture de 2016-2017 propres à NASA (recalage pentadaire sur CMAP
       temps réel) ; pluie journalière NASA à ne pas utiliser pour les épisodes.
-  - [ ] Choisir la source de pluie journalière du proxy de salissure (ERA5,
-        ou IMERG servi par NASA POWER).
+  - [x] Pluie journalière **GPM IMERG** (via NASA POWER) aux 142 localités,
+        source de la salissure et du PR réaliste (migration 0052,
+        [ADR-0033](decisions/0033-pluie-imerg-salissure.md)).
 - [ ] Chaîne d'ingestion reproductible.
   - [x] Ingesteur NASA POWER mensuel (`scripts/ingest_nasa_power_mensuel.py`,
         paramétré par grandeur GHI/DNI/DHI, hors-ligne → seed → migration ;
