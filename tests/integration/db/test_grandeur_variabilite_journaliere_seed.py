@@ -8,7 +8,8 @@ la complétude (35 ans par localité), le domaine et la **fidélité** : chaque
 valeur gravée est recalculée indépendamment depuis les CSV journaliers committés
 (base 1991-2020 et extension 2021-2025) — écart-type de population divisé par la
 moyenne des jours de l'année — et coïncide avec la fonction pure du service
-hérité (même définition, ``ddof=0``).
+hérité (même définition, ``ddof=0``). Requêtes limitées aux 34 localités : la
+variabilité des 108 départements (migration 0049, ADR-0031) a ses propres tests.
 """
 
 from __future__ import annotations
@@ -39,6 +40,7 @@ pytestmark = pytest.mark.integration
 
 GRANDEUR_CODE = "variabilite_journaliere"
 _LOCALITES = {code for code, _, _, _ in points_journalier()}
+_LOCS = sorted(_LOCALITES)  # lot pilotes + régions ; les départements ont leurs tests (0049)
 ANNEES = range(1991, 2026)
 NB_ANNUEL = len(ANNEES) * len(_LOCALITES)  # 35 ans x 34 localités = 1190
 # Tolérance relative : la base calcule en numeric sur les valeurs décimales du CSV,
@@ -79,10 +81,10 @@ def _gravees(db_session: Session) -> dict[tuple[str, int], float]:
             """
             SELECT loc.code AS localite, gm.annee_debut AS annee, gm.valeur
             FROM grandeurs_metier gm JOIN localites loc ON loc.id = gm.localite_id
-            WHERE gm.grandeur_code = :c
+            WHERE gm.grandeur_code = :c AND loc.code = ANY(:locs)
             """
         ),
-        {"c": GRANDEUR_CODE},
+        {"c": GRANDEUR_CODE, "locs": _LOCS},
     ).all()
     return {(r.localite, r.annee): r.valeur for r in rows}
 
@@ -119,10 +121,10 @@ def test_series_calculees(db_session: Session) -> None:
             FROM series_metadonnees s
             JOIN sources src ON src.id = s.source_id
             JOIN localites loc ON loc.id = s.localite_id
-            WHERE s.grandeur_code = :c
+            WHERE s.grandeur_code = :c AND loc.code = ANY(:locs)
             """
         ),
-        {"c": GRANDEUR_CODE},
+        {"c": GRANDEUR_CODE, "locs": _LOCS},
     ).all()
     assert len(rows) == len(_LOCALITES) == 34
     for r in rows:
@@ -141,10 +143,11 @@ def test_completude_domaine_confiance(db_session: Session) -> None:
             """
             SELECT localite_id, periode_type, mois, valeur, niveau_confiance_derive, statut,
                    version_formule, annee_debut, annee_fin
-            FROM grandeurs_metier WHERE grandeur_code = :c
+            FROM grandeurs_metier WHERE grandeur_code = :c AND localite_id IN
+                (SELECT id FROM localites WHERE code = ANY(:locs))
             """
         ),
-        {"c": GRANDEUR_CODE},
+        {"c": GRANDEUR_CODE, "locs": _LOCS},
     ).all()
     assert len(rows) == NB_ANNUEL
     annees_par_localite: dict[int, set[int]] = defaultdict(set)
