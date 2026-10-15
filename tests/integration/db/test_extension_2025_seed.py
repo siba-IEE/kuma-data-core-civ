@@ -1,4 +1,4 @@
-"""Tests d'intégration de l'extension temporelle 2021-2025 (migrations 0030-0032).
+"""Tests d'intégration de l'extension temporelle 2021-2025 (migrations 0030-0033).
 
 ADR-0018 : les séries déjà gravées sont **prolongées** (mêmes codes) jusqu'à la
 dernière année servie par chaque source — NASA POWER et CAMS jusqu'en 2025,
@@ -109,7 +109,11 @@ def test_fraction_diffuse_prolongee(db_session: Session) -> None:
 
 
 def test_mise_en_garde_era5(db_session: Session) -> None:
-    """Le saut ERA5 de 2021 est signalé sur les 568 séries ERA5, et sur elles seules."""
+    """Le saut ERA5 de 2021 est signalé sur les séries ERA5 et dérivées d'ERA5, et sur elles seules.
+
+    568 séries annotées par 0033, plus les 284 séries HEP et productible ERA5 de 0038
+    (ADR-0023), qui portent la même phrase dès leur création.
+    """
     attendues = {c.code_serie(code) for c in CONTRATS_ERA5.values() for code in _LOCALITES} | {
         e.code_serie(code)
         for e in ECARTS_INTER_SOURCES
@@ -117,6 +121,12 @@ def test_mise_en_garde_era5(db_session: Session) -> None:
         for code in _LOCALITES
     }
     assert len(attendues) == 568
+    attendues |= {
+        f"{g}_era5_{code}"
+        for g in ("hep", "productible_specifique_theorique")
+        for code in _LOCALITES
+    }
+    assert len(attendues) == 852
     annotees = {
         row.code
         for row in db_session.execute(
