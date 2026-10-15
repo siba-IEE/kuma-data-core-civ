@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
-"""Ingesteur reproductible : météo journalière NASA POWER aux 34 localités, CIV (ADR-0020).
+"""Ingesteur reproductible : météo journalière NASA POWER, CIV (ADR-0020, ADR-0031).
 
 Interroge l'API NASA POWER **journalière** (communauté ``RE``) aux 34 localités
 du lot ``pilotes_regions`` (3 points pilotes + 31 régions, ADR-0016), une
 requête par point pour les 6 paramètres météorologiques, et écrit un CSV gzip
 par grandeur (``seeds/donnees/nasa_power_<grandeur>_journalier_pilotes_regions.csv.gz``)
 que la migration 0035 lit hors-ligne (ADR-0015).
+
+Avec ``--departements`` : mêmes paramètres et mêmes contrats
+(``journalier_departements_civ.CONTRATS_METEO_DEPARTEMENTS``) aux **108
+départements** hors pilotes (``points_journalier_departements``), un CSV gzip
+par grandeur (``nasa_power_<grandeur>_journalier_departements.csv.gz``) que la
+migration 0047 lit hors-ligne (ADR-0031). Sans l'option, rien ne change.
 
 Contrats : ``seeds/meteo_civ.py`` (``CONTRATS_METEO_NASA_JOURNALIERS``) —
 ``t2m`` (``T2M``), ``rh2m`` (``RH2M``), ``vent_2m`` (``WS2M``), ``vent_10m``
@@ -24,9 +30,10 @@ répartition des jours manquants est affichée et le script sort en erreur.
 2022-09-16 à San-Pédro, 710,75 mm à Gbôklé), gravées telles que servies, sans
 correction ; la borne journalière du contrat est de 1000 mm/jour (ADR-0020).
 
-Usage : ``uv run python scripts/ingest_nasa_power_meteo_journalier.py``
-(``--cache <dossier>`` garde les réponses JSON brutes pour reprendre ou
-réécrire sans réinterroger l'API).
+Usage : ``uv run python scripts/ingest_nasa_power_meteo_journalier.py
+[--departements]`` (``--cache <dossier>`` garde les réponses JSON brutes pour
+reprendre ou réécrire sans réinterroger l'API). Une requête en échec (réseau,
+délai, réponse tronquée) est reprise jusqu'à 4 fois, à intervalles croissants.
 """
 
 from __future__ import annotations
@@ -36,6 +43,8 @@ import collections
 import json
 import os
 import ssl
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -43,15 +52,21 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from kuma_data_core.db.seeds.journalier_departements_civ import (
+    CONTRATS_METEO_DEPARTEMENTS,
+    LOT_JOURNALIER_DEPARTEMENTS,
+    points_journalier_departements,
+)
 from kuma_data_core.db.seeds.lots_civ import points_journalier
 from kuma_data_core.db.seeds.meteo_civ import (
     CONTRATS_METEO_NASA_JOURNALIERS,
     LOT_METEO_JOURNALIER,
     PARAMETRES_METEO_NASA,
 )
-from kuma_data_core.db.seeds.series_csv import ecrire_series_journalieres
+from kuma_data_core.db.seeds.series_csv import ContratSerie, ecrire_series_journalieres
 
 REMPLISSAGE: float = -900.0  # NASA POWER code l'absence par -999
+TENTATIVES: int = 4
 
 # Unité servie par NASA POWER (``parameters.<P>.units``) = unité du référentiel.
 UNITES_SERVIES: dict[str, str] = {
@@ -79,9 +94,17 @@ def _fetch(lat: float, lon: float, debut: date, fin: date) -> dict[str, Any]:
     url = f"https://power.larc.nasa.gov/api/temporal/daily/point?{query}"
     cafile = os.environ.get("SSL_CERT_FILE")
     ctx = ssl.create_default_context(cafile=cafile) if cafile else ssl.create_default_context()
-    with urllib.request.urlopen(url, timeout=300, context=ctx) as reponse:
-        data: dict[str, Any] = json.load(reponse)
-    return data
+    for tentative in range(1, TENTATIVES + 1):
+        try:
+            with urllib.request.urlopen(url, timeout=300, context=ctx) as reponse:
+                data: dict[str, Any] = json.load(reponse)
+            return data
+        except (urllib.error.URLError, TimeoutError, ConnectionError, json.JSONDecodeError) as e:
+            if tentative == TENTATIVES:
+                raise
+            print(f"({lat}, {lon}) : tentative {tentative} échouée ({e}) ; reprise", flush=True)
+            time.sleep(10 * tentative)  # l'API limite le débit : on espace les reprises
+    raise AssertionError("inatteignable : la dernière tentative lève ou renvoie")
 
 
 def _reponse(
@@ -100,9 +123,14 @@ def _reponse(
     return data
 
 
-def main(cache: Path | None, paralleles: int) -> None:
-    contrats = CONTRATS_METEO_NASA_JOURNALIERS
-    points = points_journalier()
+def main(cache: Path | None, paralleles: int, departements: bool = False) -> None:
+    contrats: dict[str, ContratSerie]
+    if departements:
+        contrats, lot = CONTRATS_METEO_DEPARTEMENTS, LOT_JOURNALIER_DEPARTEMENTS
+        points = points_journalier_departements()
+    else:
+        contrats, lot = CONTRATS_METEO_NASA_JOURNALIERS, LOT_METEO_JOURNALIER
+        points = points_journalier()
     debut_requete = date(min(c.annee_debut for c in contrats.values()), 1, 1)
     fin_requete = date(max(c.annee_fin for c in contrats.values()), 12, 31)
     if cache is not None:
@@ -153,7 +181,7 @@ def main(cache: Path | None, paralleles: int) -> None:
                 f"par localité {dict(sorted(par_lieu.items()))}"
             )
             continue
-        cible = ecrire_series_journalieres(contrat, LOT_METEO_JOURNALIER, par_grandeur[grandeur])
+        cible = ecrire_series_journalieres(contrat, lot, par_grandeur[grandeur])
         valeurs = [v for _, _, _, m in par_grandeur[grandeur] for _, v in m]
         print(
             f"{grandeur}: {len(par_grandeur[grandeur])} séries, {len(valeurs)} jours, "
@@ -167,5 +195,10 @@ if __name__ == "__main__":
     parseur = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parseur.add_argument("--cache", type=Path, help="dossier des réponses JSON brutes")
     parseur.add_argument("--paralleles", type=int, default=4, help="requêtes simultanées (≤ 4)")
+    parseur.add_argument(
+        "--departements",
+        action="store_true",
+        help="lot des 108 départements hors pilotes (ADR-0031) au lieu des 34 localités",
+    )
     args = parseur.parse_args()
-    main(args.cache, min(args.paralleles, 4))
+    main(args.cache, min(args.paralleles, 4), args.departements)

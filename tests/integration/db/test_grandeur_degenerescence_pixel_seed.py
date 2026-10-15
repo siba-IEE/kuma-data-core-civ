@@ -349,7 +349,8 @@ def test_era5_plus_fin_que_sa_maille(seed: ModuleType) -> None:
 
 @pytest.mark.parametrize("seed", _NASA, ids=_id)
 def test_journalier_nasa_meme_partition(db_session: Session, seed: ModuleType) -> None:
-    """Le journalier NASA (34 localités) regroupe les localités comme le mensuel."""
+    """Le journalier NASA regroupe les localités comme le mensuel : aux 142 localités
+    depuis le lot des 108 départements (0046, ADR-0031), et aux 34 du lot initial."""
     rows = db_session.execute(
         text(
             """
@@ -365,11 +366,16 @@ def test_journalier_nasa_meme_partition(db_session: Session, seed: ModuleType) -
         ),
         {"gr": seed.GRANDEUR_CODE},
     ).all()
-    perimetre = frozenset(code for code, _, _, _ in points_journalier())
-    assert {r.localite for r in rows} == perimetre and len(perimetre) == 34
-    journalier = _groupes({r.localite: (r.empreinte,) for r in rows}, perimetre)
-    assert journalier == _groupes_bruts(seed, perimetre)
-    assert len(journalier) == 22
+    assert {r.localite for r in rows} == _LOCALITES
+    vecteurs: dict[str, tuple[object, ...]] = {r.localite: (r.empreinte,) for r in rows}
+    journalier = _groupes(vecteurs, _LOCALITES)
+    assert journalier == _groupes_bruts(seed)
+    assert len(journalier) == 35
+    lot_initial = frozenset(code for code, _, _, _ in points_journalier())
+    assert len(lot_initial) == 34
+    journalier_34 = _groupes(vecteurs, lot_initial)
+    assert journalier_34 == _groupes_bruts(seed, lot_initial)
+    assert len(journalier_34) == 22
 
 
 def test_lecture_par_le_chemin_de_l_api(db_session: Session) -> None:

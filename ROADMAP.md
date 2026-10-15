@@ -147,7 +147,11 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
         les particules (34 localités).
   - [x] **Humidex** stocké aux 34 localités (migration 0045,
         [ADR-0030](decisions/0030-humidex-nasa.md)).
-  - [ ] POA et productibles pour les 108 départements sans journalier.
+  - [x] **Journalier aux 108 départements** (rayonnement, météo, particules,
+        variabilité, humidex ; migrations 0046-0049,
+        [ADR-0031](decisions/0031-journalier-departements-audit-par-serie.md)) :
+        POA, productibles thermiques, salissure et PR réaliste calculables aux
+        111 départements ; audit par série des gravures massives.
 - [ ] Contrôle qualité horaire.
 
 ## Jalon 4 : terrain (confiance A)
