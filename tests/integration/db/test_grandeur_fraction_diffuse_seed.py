@@ -9,7 +9,8 @@ contrat (grandeur ``stockee`` sans dimension, séries ``calcul_derive`` de
 physique [0, 1] et la **fidélité** : chaque valeur gravée est recalculée
 indépendamment depuis les sources brutes NASA (seeds pilotes et CSV des lots) —
 ``Σ DHI / Σ GHI`` sur les jours de la période, reconstruit depuis les moyennes
-journalières mensuelles.
+journalières mensuelles. Les requêtes se limitent aux séries NASA : la fraction
+diffuse CAMS (migration 0040, ADR-0025) a ses propres tests.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from tests.integration.db.mesures_brutes import mesures_mensuelles
 pytestmark = pytest.mark.integration
 
 GRANDEUR_CODE = "fraction_diffuse"
+PREFIXE_NASA = "fraction_diffuse_nasa_power_"  # la série CAMS (0040) coexiste
 # 3 pilotes + 139 localités des lots nationaux (ADR-0017).
 _LOCALITES = set(mesures_mensuelles(np_ghi))
 NB_MENSUEL = 300 * len(_LOCALITES)  # 300 mois (2001-2025) x 142 localités
@@ -90,10 +92,10 @@ def test_series_calculees(db_session: Session) -> None:
             SELECT s.code, s.methode_collecte, s.granularite, src.code AS source,
                    s.periode_debut, s.periode_fin
             FROM series_metadonnees s JOIN sources src ON src.id = s.source_id
-            WHERE s.grandeur_code = :c
+            WHERE s.grandeur_code = :c AND starts_with(s.code, :p)
             """
         ),
-        {"c": GRANDEUR_CODE},
+        {"c": GRANDEUR_CODE, "p": PREFIXE_NASA},
     ).all()
     assert {r.code for r in rows} == {f"fraction_diffuse_nasa_power_{loc}" for loc in _LOCALITES}
     for r in rows:
@@ -107,12 +109,13 @@ def test_completude_domaine_confiance(db_session: Session) -> None:
     rows = db_session.execute(
         text(
             """
-            SELECT periode_type, mois, valeur, niveau_confiance_derive, statut,
-                   version_formule, annee_debut, annee_fin
-            FROM grandeurs_metier WHERE grandeur_code = :c
+            SELECT gm.periode_type, gm.mois, gm.valeur, gm.niveau_confiance_derive, gm.statut,
+                   gm.version_formule, gm.annee_debut, gm.annee_fin
+            FROM grandeurs_metier gm JOIN series_metadonnees s ON s.id = gm.series_metadonnees_id
+            WHERE gm.grandeur_code = :c AND starts_with(s.code, :p)
             """
         ),
-        {"c": GRANDEUR_CODE},
+        {"c": GRANDEUR_CODE, "p": PREFIXE_NASA},
     ).all()
     assert sum(r.periode_type == "mensuel" for r in rows) == NB_MENSUEL
     assert sum(r.periode_type == "annuel" for r in rows) == NB_ANNUEL
@@ -134,10 +137,11 @@ def test_valeurs_fideles_au_calcul(db_session: Session) -> None:
             SELECT loc.code AS localite, gm.periode_type, gm.annee_debut AS annee,
                    gm.mois, gm.valeur
             FROM grandeurs_metier gm JOIN localites loc ON loc.id = gm.localite_id
-            WHERE gm.grandeur_code = :c
+            JOIN series_metadonnees s ON s.id = gm.series_metadonnees_id
+            WHERE gm.grandeur_code = :c AND starts_with(s.code, :p)
             """
         ),
-        {"c": GRANDEUR_CODE},
+        {"c": GRANDEUR_CODE, "p": PREFIXE_NASA},
     ).all()
     for r in rows:
         if r.periode_type == "mensuel":
