@@ -142,8 +142,11 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
         données nationales ([ADR-0028](decisions/0028-grandeurs-api-series-prolongees.md)) ;
         API des séries et localités (résolution, recherche, pagination,
         [ADR-0029](decisions/0029-exposition-api-donnees-nationales.md)).
-  - [ ] Correction thermique, degrés-jours, humidex, salissure et PR réaliste
-        vérifiés sur la météo journalière et les particules.
+  - [x] Correction thermique, degrés-jours, énergie ECS, POA bifacial,
+        salissure et PR réaliste vérifiés par l'API sur la météo journalière et
+        les particules (34 localités).
+  - [x] **Humidex** stocké aux 34 localités (migration 0045,
+        [ADR-0030](decisions/0030-humidex-nasa.md)).
   - [ ] POA et productibles pour les 108 départements sans journalier.
 - [ ] Contrôle qualité horaire.
 
@@ -155,3 +158,6 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
 ## Documentation
 
 - [ ] Adapter `docs/` au contexte ivoirien.
+  - [x] Référence de l'API, démarrage rapide et fiches de grandeurs (HEP,
+        productible, variabilité, fraction diffuse) : moteur générique,
+        exemples ivoiriens vérifiés.
