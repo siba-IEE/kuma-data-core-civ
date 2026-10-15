@@ -7,8 +7,9 @@ sous ``seeds/donnees/``, lus hors-ligne par les migrations : l'invariant « pas 
 réseau dans une migration, chaque valeur versionnée » est inchangé.
 
 Un fichier = une (source, grandeur, lot). Colonnes :
-``localite_code, latitude, longitude, annee, mois, valeur`` (valeur en
-kWh/m²/jour, moyenne journalière du mois, arrondie à 4 décimales).
+``localite_code, latitude, longitude, annee, mois, valeur`` (valeur dans l'unité
+de la grandeur au référentiel — kWh/m²/jour pour le rayonnement —, moyenne
+journalière du mois, arrondie à 4 décimales).
 
 L'écriture est **déterministe** (lignes triées, horodatage gzip nul) : régénérer
 un fichier depuis les mêmes données produit les mêmes octets, ce qui rend la
@@ -45,9 +46,10 @@ class ContratSerie:
     methode_collecte: str
     annee_debut: int
     annee_fin: int
-    borne_max: float  # kWh/m²/jour, garde-fou de sanité
+    borne_max: float  # unité de la grandeur (kWh/m²/jour, °C…), garde-fou de sanité
     niveau_confiance: str = "B"
     granularite: str = "mensuel"
+    libelle_grandeur: str | None = None  # libellé de série ; à défaut, code en capitales
 
     @property
     def periode_debut(self) -> str:
@@ -136,7 +138,8 @@ def lire_series(contrat: ContratSerie, lot: str) -> list[dict[str, Any]]:
             {
                 "code": contrat.code_serie(code),
                 "libelle": (
-                    f"{contrat.grandeur_code.upper()} mensuel {contrat.source_libelle} — "
+                    f"{contrat.libelle_grandeur or contrat.grandeur_code.upper()} mensuel "
+                    f"{contrat.source_libelle} — "
                     f"{noms[code]} ({contrat.annee_debut}-{contrat.annee_fin})"
                 ),
                 "localite_code": code,
@@ -230,7 +233,8 @@ def lire_series_journalieres(contrat: ContratSerie, lot: str) -> list[dict[str, 
             {
                 "code": contrat.code_serie(code),
                 "libelle": (
-                    f"{contrat.grandeur_code.upper()} journalier {contrat.source_libelle} — "
+                    f"{contrat.libelle_grandeur or contrat.grandeur_code.upper()} journalier "
+                    f"{contrat.source_libelle} — "
                     f"{noms[code]} ({contrat.annee_debut}-{contrat.annee_fin})"
                 ),
                 "localite_code": code,
