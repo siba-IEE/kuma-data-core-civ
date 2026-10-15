@@ -1,7 +1,7 @@
 """hep_productible_theorique
 
 Revision ID: 0038
-Revises: 0036
+Revises: 0037
 Create Date: 2026-10-15
 
 Matérialise les **heures équivalentes pleines** (``hep``, id 1, unité
@@ -78,7 +78,7 @@ from kuma_data_core.db.seeds.series_csv import ContratSerie
 
 # revision identifiers, used by Alembic.
 revision: str = "0038"
-down_revision: str | Sequence[str] | None = "0036"
+down_revision: str | Sequence[str] | None = "0037"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

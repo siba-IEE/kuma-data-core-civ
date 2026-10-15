@@ -25,6 +25,14 @@ le projet suit le versionnement sémantique.
   `ecmwf_era5`. Humidité non gravée (recalcul depuis les moyennes mensuelles
   biaisé de −1,8 point) ; albédo ERA5 non pertinent. Triangulation avec NASA :
   ERA5 +0,27 °C, vent −14 %, pluie −6,6 %.
+- Jalon 2 — **particules fines PM2.5 et PM10** (CAMS EAC4, migration 0037,
+  ADR-0022), entrées du modèle de salissure : mensuel aux 142 localités et
+  journalier aux 34 localités, 2003-2025 (352 séries, 649 652 mesures), point
+  de grille 0,75° le plus proche (49 mailles pour 142 localités). Harmattan :
+  PM2.5 de décembre-février environ 3,9 fois celles de juin-août ; extrêmes
+  journaliers PM10 jusqu'à 1 565 µg/m³ (Bafing, 21/02/2016). Incohérence de la
+  source en mars 2024 (journalier ≠ mensuel jusqu'à 6 %) signalée, non
+  corrigée.
 - Jalon 3 — **heures équivalentes pleines et productible spécifique
   théorique** (migration 0038, ADR-0023) aux 142 localités pour les 4 sources de
   GHI, mensuel et annuel (1 136 séries, 347 048 lignes) ; équivalence avec la

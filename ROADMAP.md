@@ -77,6 +77,10 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
         1991-2025, 142 localités (migration 0036,
         [ADR-0021](decisions/0021-meteo-era5-cds.md)) ; humidité ERA5 non
         gravée (biais du recalcul mensuel).
+- [x] **Particules fines PM2.5 et PM10** (CAMS EAC4, 2003-2025) : mensuel aux
+      142 localités, journalier aux 34 localités (migration 0037,
+      [ADR-0022](decisions/0022-particules-cams-eac4.md)) — entrées du proxy
+      de salissure et du PR réaliste.
 - [ ] Chaîne d'ingestion reproductible.
   - [x] Ingesteur NASA POWER mensuel (`scripts/ingest_nasa_power_mensuel.py`,
         paramétré par grandeur GHI/DNI/DHI, hors-ligne → seed → migration ;
