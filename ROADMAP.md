@@ -81,6 +81,13 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
       142 localités, journalier aux 34 localités (migration 0037,
       [ADR-0022](decisions/0022-particules-cams-eac4.md)) — entrées du proxy
       de salissure et du PR réaliste.
+- [x] **Pluie journalière ERA5** (CDS) aux 142 localités et **recoupement de la
+      pluie NASA** (migrations 0050-0051,
+      [ADR-0032](decisions/0032-pluie-nasa-recoupement-era5.md)) : jours extrêmes
+      et rupture de 2016-2017 propres à NASA (recalage pentadaire sur CMAP
+      temps réel) ; pluie journalière NASA à ne pas utiliser pour les épisodes.
+  - [ ] Choisir la source de pluie journalière du proxy de salissure (ERA5,
+        ou IMERG servi par NASA POWER).
 - [ ] Chaîne d'ingestion reproductible.
   - [x] Ingesteur NASA POWER mensuel (`scripts/ingest_nasa_power_mensuel.py`,
         paramétré par grandeur GHI/DNI/DHI, hors-ligne → seed → migration ;

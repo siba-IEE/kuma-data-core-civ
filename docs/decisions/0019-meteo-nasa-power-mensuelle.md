@@ -165,7 +165,9 @@ départements, 9 régions ; latitudes 4,75 à 7,17), septembre 2022 dépasse le
 double du plus fort des 34 autres septembres. Au point extrême, San-Pédro,
 NASA sert **56,28 mm/jour** (1 688,5 mm dans le mois, dont **726,74 mm le
 16 septembre**) ; ERA5 à San-Pédro (archive Open-Meteo, point de la région,
-consultée le 2026-10-15) donne **146,8 mm** (4,89 mm/jour, 0,9 mm le 16). La moyenne
+consultée le 2026-10-15) donne **146,8 mm** (4,89 mm/jour, 0,9 mm le 16) ; ERA5 du CDS
+(série gravée en 0036 et 0050, ADR-0032) donne 3,73 à 5,64 mm/jour pour le mois et 8,3 à
+12,8 mm le 16 selon le point de San-Pédro. La moyenne
 nationale de septembre 2022 est de 15,55 mm/jour contre 5,56 pour la normale
 1991-2020 ; 2022 devient l'année la plus pluvieuse de la série (4,96 mm/jour).
 
