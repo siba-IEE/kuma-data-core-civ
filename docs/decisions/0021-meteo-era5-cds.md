@@ -167,8 +167,9 @@ tranche :
   observations assimilées ou signal réel que les satellites voient moins) n'est
   pas établie.
 - La mise en garde de la migration 0033 reste juste sur le fond ; sa formule
-  « saut probable du produit PVGIS-ERA5 » est à lire comme un saut d'ERA5. Ni
-  l'ADR-0018 ni cette note ne sont modifiés ici.
+  « saut probable du produit PVGIS-ERA5 » est réécrite en « saut probable de la
+  réanalyse ERA5 » par la migration 0043, sur les 994 séries qui la portent
+  (précision reportée dans l'ADR-0018).
 
 **Variables gravées : pas de saut analogue.** Même contrôle (variation de la
 moyenne nationale rapportée à l'écart-type des moyennes annuelles 2005-2020),

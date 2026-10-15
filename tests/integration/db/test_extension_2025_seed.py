@@ -1,4 +1,4 @@
-"""Tests d'intégration de l'extension temporelle 2021-2025 (migrations 0030-0033).
+"""Tests d'intégration de l'extension temporelle 2021-2025 (migrations 0030-0033, 0043).
 
 ADR-0018 : les séries déjà gravées sont **prolongées** (mêmes codes) jusqu'à la
 dernière année servie par chaque source — NASA POWER et CAMS jusqu'en 2025,
@@ -6,7 +6,7 @@ SARAH-3 et ERA5 jusqu'en 2023. Vérifie, pour toutes les séries concernées
 (brutes mensuelles, journalières NASA, écarts, fraction diffuse) : fin de
 période, libellé « (AAAA-fin) », phrase ajoutée à la note publique, et absence
 de toute valeur au-delà de la fin servie. Vérifie aussi la mise en garde sur le
-saut ERA5 de 2021 (migration 0033), portée par les notes des seules séries ERA5.
+saut ERA5 de 2021 (migrations 0033 et 0043), portée par les notes des seules séries ERA5.
 """
 
 from __future__ import annotations
@@ -113,7 +113,8 @@ def test_mise_en_garde_era5(db_session: Session) -> None:
 
     568 séries annotées par 0033, plus les séries dérivées du GHI ERA5 qui portent la
     même phrase dès leur création : 284 séries HEP et productible (0038, ADR-0023) et
-    142 séries d'indice de clarté (0041, ADR-0026).
+    142 séries d'indice de clarté (0041, ADR-0026). La migration 0043 précise la
+    formulation : le saut vient de la réanalyse ERA5 elle-même (ADR-0021).
     """
     attendues = {c.code_serie(code) for c in CONTRATS_ERA5.values() for code in _LOCALITES} | {
         e.code_serie(code)
@@ -135,8 +136,16 @@ def test_mise_en_garde_era5(db_session: Session) -> None:
         for row in db_session.execute(
             text(
                 "SELECT code FROM series_metadonnees "
-                "WHERE strpos(note_publique, 'saut probable du produit PVGIS-ERA5 en 2021') > 0"
+                "WHERE strpos(note_publique, 'saut probable de la réanalyse ERA5 en 2021') > 0"
             )
         ).all()
     }
     assert annotees == attendues
+    # Formulation précisée par 0043 (ADR-0021) : plus aucune série ne porte l'ancienne.
+    anciennes = db_session.execute(
+        text(
+            "SELECT COUNT(*) FROM series_metadonnees "
+            "WHERE strpos(note_publique, 'saut probable du produit PVGIS-ERA5') > 0"
+        )
+    ).scalar_one()
+    assert anciennes == 0
