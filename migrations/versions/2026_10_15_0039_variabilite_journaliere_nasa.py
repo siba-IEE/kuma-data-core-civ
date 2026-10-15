@@ -1,7 +1,7 @@
 """variabilite_journaliere_nasa
 
 Revision ID: 0039
-Revises: 0033
+Revises: 0038
 Create Date: 2026-10-15
 
 Matérialise la grandeur **``variabilite_journaliere``** (id 5, seedée en 0002, F1
@@ -51,7 +51,7 @@ from kuma_data_core.db.seeds.lots_civ import CONTRATS_NASA_JOURNALIERS, points_j
 
 # revision identifiers, used by Alembic.
 revision: str = "0039"
-down_revision: str | Sequence[str] | None = "0033"
+down_revision: str | Sequence[str] | None = "0038"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
