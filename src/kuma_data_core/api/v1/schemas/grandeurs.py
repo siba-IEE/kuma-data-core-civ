@@ -25,10 +25,12 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from kuma_data_core.api.v1.schemas.parametres import ParametresRequete
+
 # === Paramètres communs ===================================================
 
 
-class ParametresCommunsF2(BaseModel):
+class ParametresCommunsF2(ParametresRequete):
     """Paramètres communs à tous les endpoints F2 paramétrables.
 
     Le champ ``format_sortie`` est exposé en query string sous le nom
@@ -472,7 +474,7 @@ ModeCorrectionPR = Literal["aucune", "temperature", "salissure", "temperature_sa
 """Modes de correction du PR réaliste (superposition thermique et/ou salissure)."""
 
 
-class ParametresPRRealiste(BaseModel):
+class ParametresPRRealiste(ParametresRequete):
     """Paramètres (query) de l'endpoint ``pr_realiste``. La série GHI source est en path.
 
     Doctrine PR-référence : ``pr_fourni`` est supposé **hors salissure ET hors

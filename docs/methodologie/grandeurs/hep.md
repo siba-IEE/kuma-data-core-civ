@@ -3,6 +3,9 @@
 > Toute révision méthodologique (formule, politique de complétude,
 > hypothèses) déclenche une incrémentation de `version_formule` et une
 > entrée dans la section *Historique des versions*.
+>
+> Les §§ 3, 4.3, 6.2, 6.4 et 8 décrivent le périmètre de l'instance
+> d'origine (Guinée). L'application à la Côte d'Ivoire est au § 9.
 
 ## 1. Identification
 
@@ -220,7 +223,105 @@ L'invariant `sum_{m=1..12} HEP_mensuel(annee, m) = HEP_annuel(annee)`
 est vérifié à `rel=1e-9` près sur les 30 (localité, année) du périmètre
 (test d'intégration).
 
-## 9. Versioning et historique
+## 9. Application Côte d'Ivoire
+
+Décision, vérifications et constats : ADR-0023 (migration 0038).
+
+### 9.1 Calcul depuis le GHI mensuel des 4 sources
+
+L'instance Côte d'Ivoire porte le GHI **mensuel** (moyenne journalière
+du mois, kWh/m²/jour) de 4 sources aux 142 localités (31 régions, 111
+départements) ; le GHI journalier NASA POWER n'existe qu'aux 34
+localités du lot journalier (ADR-0016). Le HEP y est calculé depuis le
+mensuel :
+
+```
+HEP_mensuel(annee, mois) := GHI_mois(annee, mois) × n_jours(annee, mois)
+HEP_annuel(annee)        := sum_{m=1..12} HEP_mensuel(annee, m)   (années complètes seulement)
+```
+
+Sur les jours d'un mois, la somme des GHI journaliers vaut le nombre de
+jours fois leur moyenne : la formule du § 2 est **inchangée**
+(`version_formule = 1`), seule l'entrée change de grain. La complétude
+du § 4 s'applique au grain mensuel : une ligne mensuelle par mesure
+mensuelle gravée, une ligne annuelle seulement si les 12 mois existent.
+Les séries amont sont complètes, sans valeur de remplissage : aucune
+année n'est écartée.
+
+| Source | Série amont | Période | Séries `hep` |
+|---|---|---|---|
+| NASA POWER | `nasa_power_ghi_mensuel_<loc>` | 1991-2025 | `hep_nasa_power_<loc>` |
+| CAMS Radiation | `cams_ghi_mensuel_<loc>` | 2005-2025 | `hep_cams_<loc>` |
+| SARAH-3 (PVGIS) | `sarah3_ghi_mensuel_<loc>` | 2005-2023 | `hep_sarah3_<loc>` |
+| ERA5 (PVGIS) | `era5_ghi_mensuel_<loc>` | 2005-2023 | `hep_era5_<loc>` |
+
+Aucune source n'est désignée « la » source du HEP : un GHI pondéré par
+les jours hérite du désaccord entre sources, qui est le savoir tracé
+(ADR-0009) ; chacune a donc sa série. 568 séries (source `kuma_calculs`,
+méthode `calcul_derive`), 160 176 lignes mensuelles et 13 348 annuelles,
+confiance B, statut `brut`. Les séries `hep_era5_<loc>` portent la mise
+en garde du saut ERA5 de 2021 (ADR-0018). Calcul hors-ligne en SQL dans
+la migration, sommes en `numeric` : valeurs reproductibles au bit près.
+
+### 9.2 Équivalence avec la définition journalière (démontrée)
+
+Aux 34 localités du journalier NASA POWER, sur 1991-2025, la fonction de
+la fiche (`services/grandeurs/hep.py`, `_agreger_hep_journaliers`,
+complétude stricte des jours civils) appliquée au GHI journalier a été
+comparée au HEP NASA calculé depuis le mensuel :
+
+| Contrôle | Périodes | Écart max | Écart relatif max |
+|---|---:|---:|---:|
+| HEP mensuel | 14 280 mois | 0,0053 h_eq | 4,6·10⁻⁵ |
+| HEP annuel | 1 190 années | 0,025 h_eq | 1,4·10⁻⁵ |
+
+Aucun biais : l'écart est l'arrondi déjà mesuré entre la moyenne des
+jours NASA et le mensuel NASA (≤ 0,00017 kWh/m²/jour, ADR-0016),
+multiplié par le nombre de jours. Le test d'intégration exige un écart
+inférieur à 2·10⁻⁴ h_eq par jour de la période, sur toutes les périodes.
+
+### 9.3 Productible théorique
+
+Le productible spécifique théorique se calcule depuis ces lignes `hep`,
+mensuelles comprises, et ses lignes mensuelles sont gravées sous
+`productible_specifique_theorique` : voir la fiche
+`productible_specifique_theorique.md` § 9.
+
+### 9.4 Plage observée ; la plage guinéenne ne se transpose pas
+
+HEP annuel moyen par localité, sur la période de chaque source, puis
+distribution sur les 142 localités (h_eq/an) :
+
+| Source | Période | Moyenne | Min – max des moyennes par localité | Min – max des valeurs annuelles |
+|---|---|---:|---:|---:|
+| NASA POWER | 1991-2025 | 1 772 | 1 648 – 2 066 | 1 591 – 2 116 |
+| CAMS | 2005-2025 | 1 957 | 1 687 – 2 171 | 1 623 – 2 219 |
+| SARAH-3 | 2005-2023 | 2 001 | 1 808 – 2 204 | 1 738 – 2 247 |
+| ERA5 | 2005-2023 | 1 794 | 1 597 – 2 093 | 1 527 – 2 134 |
+
+La plage typique du § 8.1 (`[1700, 2100]` h_eq/an, établie pour la
+Guinée) **n'est pas transposable** : sur les 13 348 valeurs annuelles
+ivoiriennes, 2 688 sont en dessous (NASA POWER 1 833, ERA5 839, CAMS 16)
+et 970 au-dessus (SARAH-3 526, CAMS 411, ERA5 19, NASA POWER 14). Le
+garde-fou du calcul ivoirien est donc physique (`0 < HEP ≤ 12 h_eq` par
+jour de la période, borne placée au-dessus du rayonnement
+extraterrestre, environ 10,5), pas climatologique.
+
+Lecture (constats, pas validation, détail dans ADR-0023) : le HEP croît
+du sud au nord ; les sources s'écartent davantage au sud, où le HEP est
+une fourchette plutôt qu'une valeur. SARAH-3 est la source la plus
+haute, NASA POWER et ERA5 les plus basses.
+
+### 9.5 Maille
+
+Le § 6.2 (Kindia et Mamou) vaut pour la Guinée. En Côte d'Ivoire, NASA
+POWER ne distingue que 35 séries GHI mensuelles sur 142 localités
+(cellules CERES de 1°) : des localités d'une même cellule ont un HEP
+NASA identique, ce que la grandeur `degenerescence_pixel` rend explicite
+(ADR-0027). SARAH-3, ERA5 (PVGIS) et CAMS distinguent les 126 points de
+coordonnées distinctes.
+
+## 10. Versioning et historique
 
 | Version | Date | Modifications |
 |---|---|---|
@@ -232,11 +333,11 @@ ce même tableau. Les lignes `grandeurs_metier` v1 restent en base. La
 vue `v_grandeurs_metier_courantes` filtre automatiquement sur la
 version actuelle.
 
-## 10. Auteurs
+## 11. Auteurs
 
 - **v1 - 2026-05** : Siba Kalivogui (Kuma Science).
 
-## 11. Références bibliographiques
+## 12. Références bibliographiques
 
 - NASA POWER methodology - `https://power.larc.nasa.gov/docs/methodology/`
 - CERES SYN1deg - `https://ceres.larc.nasa.gov/data/`
