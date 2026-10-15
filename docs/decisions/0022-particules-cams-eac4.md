@@ -217,3 +217,17 @@ committés : 4,3 Mo (0,5 Mo mensuel, 3,8 Mo journalier). Migration 0037 : enviro
 - Étendre le journalier aux 108 départements ne demanderait aucun
   téléchargement de plus (même boîte), au prix d'environ 1,8 M lignes, dont
   beaucoup en double (49 mailles pour 142 localités).
+
+## Précisions (2026-10-15, ADR-0031)
+
+Le lot journalier des 108 départements (migration 0048) a relu les mêmes
+archives 3-horaires sur toutes les mailles des localités :
+
+- l'unique analyse où PM2.5 > PM10 (2004-07-23, 15 UTC) tombe dans la maille de
+  Méagui et San-Pédro : elle est donc hors maille des 34 localités de ce lot,
+  mais pas hors maille de localité ;
+- EAC4 sert aussi quelques analyses nulles avant 12 UTC (3 sur les 48 mailles
+  des départements, le 2025-07-11 à 00 et 03 UTC) ; la règle « jamais de 00 à
+  09 UTC » ne vaut que pour les mailles des 34 localités ;
+- l'écart de mars 2024 entre journalier et mensuel atteint 6,0 % (Doropo) aux
+  départements.

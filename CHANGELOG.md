@@ -7,6 +7,18 @@ le projet suit le versionnement sémantique.
 
 ### Ajouté
 
+- Jalon 2/3 — **journalier aux 108 départements** (migrations 0046-0049,
+  ADR-0031) : avec les pilotes, les 111 départements ont un journalier complet.
+  Rayonnement NASA POWER (324 séries, 3 352 968 mesures), météo NASA POWER (648
+  séries, 7 889 508 mesures), particules CAMS EAC4 (216 séries, 1 814 616
+  mesures), puis variabilité journalière et humidex (52 920 lignes). Les calculs
+  journaliers de l'API (POA, correction thermique, degrés-jours, salissure, PR
+  réaliste) et les grandeurs dérivées du journalier couvrent tout le territoire.
+  **Audit par série** des gravures massives (décision de l'utilisateur) : une
+  entrée d'audit par série, avec le CSV et son empreinte SHA-256, au lieu
+  d'environ 11 Go d'audit ligne à ligne. La rupture de la pluie NASA vers 2017
+  se confirme aux 108 départements (jours > 50 mm ×11,9).
+
 - Jalon 2 — **météo NASA POWER** : température, humidité relative, vent à 2 et
   10 m, précipitations (MERRA-2, 1991-2025) et albédo de surface (CERES,
   2001-2025). **Mensuel aux 142 localités** (migration 0034, ADR-0019 : 852

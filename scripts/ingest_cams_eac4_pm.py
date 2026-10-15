@@ -11,8 +11,15 @@ CSV gzip que la migration 0037 lit hors-ligne (ADR-0015, ADR-0022) :
   00-21 UTC) aux **34 localités** du lot ``pilotes_regions`` :
   ``seeds/donnees/cams_eac4_<grandeur>_journalier_pilotes_regions.csv.gz``.
 
+Avec ``--departements``, le journalier est écrit aux **108 départements** hors
+pilotes (lot ``departements``, migration 0048, ADR-0031) à la place des 34
+localités : ``seeds/donnees/cams_eac4_<grandeur>_journalier_departements.csv.gz``.
+Mêmes archives (la boîte englobe les 142 localités), même traitement ; le
+mensuel n'est pas réécrit, seulement relu pour le contrôle de cohérence.
+
 Contrats : ``kuma_data_core.db.seeds.aerosols_civ`` (source ``cams_eac4`` id 15,
-méthode ``reanalyse``, confiance B, 2003-2025).
+méthode ``reanalyse``, confiance B, 2003-2025) ; pour les départements,
+``journalier_departements_civ.CONTRATS_PARTICULES_DEPARTEMENTS`` (identiques).
 
 **Faits API** (sondage du 2026-10-15) : variables ``particulate_matter_2.5um`` et
 ``particulate_matter_10um`` (noms netCDF ``pm2p5``, ``pm10``), unité native
@@ -35,7 +42,8 @@ méthode ``reanalyse``, confiance B, 2003-2025).
 servi est comparé à la moyenne des analyses 3-horaires du mois ; l'écart est
 affiché. Attendu : quelques 10⁻⁴ µg/m³, sauf en mars 2024 où le mensuel servi
 s'écarte de ses propres analyses (jusqu'à 6 %, incohérence de la source,
-ADR-0022).
+ADR-0022). Avec ``--departements``, la comparaison porte sur les 108
+départements, mars 2024 à part.
 
 **Accès ADS (clé obligatoire)** : variable d'environnement ``ADS_API_KEY`` ; à
 défaut ``~/.cdsapirc`` (cf. ``ingest_cams_radiation_mensuel.py``). Une requête par
@@ -45,7 +53,8 @@ telle quelle si elle est valide, ce qui permet de reprendre après une
 interruption (la file ADS est parfois lente).
 
 Usage : ``uv run python -I scripts/ingest_cams_eac4_pm.py --cache <dossier>``
-(``--granularite mensuel|journalier|tout``, ``--telecharger-seulement``).
+(``--granularite mensuel|journalier|tout``, ``--telecharger-seulement``,
+``--departements``).
 """
 
 from __future__ import annotations
@@ -77,8 +86,17 @@ from kuma_data_core.db.seeds.aerosols_civ import (
     LOT_AEROSOLS_MENSUEL,
     PARAMETRES_EAC4,
 )
+from kuma_data_core.db.seeds.journalier_departements_civ import (
+    CONTRATS_PARTICULES_DEPARTEMENTS,
+    LOT_JOURNALIER_DEPARTEMENTS,
+    points_journalier_departements,
+)
 from kuma_data_core.db.seeds.lots_civ import POINTS_PILOTES, points_journalier, points_nationaux
-from kuma_data_core.db.seeds.series_csv import ecrire_series, ecrire_series_journalieres
+from kuma_data_core.db.seeds.series_csv import (
+    ContratSerie,
+    ecrire_series,
+    ecrire_series_journalieres,
+)
 
 ADS_URL = "https://ads.atmosphere.copernicus.eu/api"
 DATASET_MENSUEL = "cams-global-reanalysis-eac4-monthly"
@@ -297,26 +315,43 @@ def _instants(temps: np.ndarray) -> list[datetime]:
     return [datetime.fromtimestamp(int(t), tz=UTC) for t in temps]
 
 
-def ecrire_mensuel(archive: Path) -> dict[str, dict[str, dict[tuple[int, int], float]]]:
-    """Écrit les CSV mensuels (142 localités) ; renvoie {grandeur: {code: {(a, m): µg/m³}}}."""
+def extraire_mensuel(
+    archive: Path,
+) -> dict[str, list[tuple[str, float, float, list[tuple[int, int, float]]]]]:
+    """Mensuel servi aux 142 localités : {grandeur: [(code, lat, lon, [(a, m, µg/m³)])]}."""
     temps, lats, lons, champs = _lire_archive(archive)
     points = points_nationaux()
     mailles = _mailles(points, lats, lons)
     mois = [(t.year, t.month) for t in _instants(temps)]
     if any(t.day != 1 or t.hour != 0 for t in _instants(temps)) or len(set(mois)) != len(mois):
         raise SystemExit("Mensuel : instants inattendus (1er du mois 00 UTC, sans doublon).")
-    sortie: dict[str, dict[str, dict[tuple[int, int], float]]] = {}
-    for grandeur, contrat in CONTRATS_EAC4_MENSUELS.items():
-        series = []
-        sortie[grandeur] = {}
+    sortie: dict[str, list[tuple[str, float, float, list[tuple[int, int, float]]]]] = {}
+    for grandeur in CONTRATS_EAC4_MENSUELS:
+        sortie[grandeur] = []
         for code, _, lat, lon in points:
             j, k = mailles[code]
             valeurs = champs[grandeur][:, j, k] * KG_VERS_MICROGRAMME
             if np.isnan(valeurs).any():
                 raise SystemExit(f"Mensuel {grandeur} {code} : valeur manquante servie.")
             mesures = [(a, m, float(v)) for (a, m), v in zip(mois, valeurs, strict=True)]
-            sortie[grandeur][code] = {(a, m): v for a, m, v in mesures}
-            series.append((code, lat, lon, mesures))
+            sortie[grandeur].append((code, lat, lon, mesures))
+    return sortie
+
+
+def _par_mois(
+    series: dict[str, list[tuple[str, float, float, list[tuple[int, int, float]]]]],
+) -> dict[str, dict[str, dict[tuple[int, int], float]]]:
+    return {
+        grandeur: {code: {(a, m): v for a, m, v in mesures} for code, _, _, mesures in liste}
+        for grandeur, liste in series.items()
+    }
+
+
+def ecrire_mensuel(archive: Path) -> dict[str, dict[str, dict[tuple[int, int], float]]]:
+    """Écrit les CSV mensuels (142 localités) ; renvoie {grandeur: {code: {(a, m): µg/m³}}}."""
+    extrait = extraire_mensuel(archive)
+    for grandeur, contrat in CONTRATS_EAC4_MENSUELS.items():
+        series = extrait[grandeur]
         cible = ecrire_series(contrat, LOT_AEROSOLS_MENSUEL, series)
         tout = np.array([v for _, _, _, ms in series for _, _, v in ms])
         print(
@@ -324,17 +359,20 @@ def ecrire_mensuel(archive: Path) -> dict[str, dict[str, dict[tuple[int, int], f
             f"min {tout.min():.2f}, max {tout.max():.2f} µg/m³, nuls {int((tout == 0).sum())}",
             flush=True,
         )
-    return sortie
+    return _par_mois(extrait)
 
 
 def ecrire_journalier(
     archives: dict[str, Path],
+    points: list[Point] | None = None,
+    lot: str = LOT_AEROSOLS_JOURNALIER,
+    contrats: dict[str, ContratSerie] = CONTRATS_EAC4_JOURNALIERS,
 ) -> dict[str, dict[str, dict[tuple[int, int], list[float]]]]:
-    """Écrit les CSV journaliers (34 localités).
+    """Écrit les CSV journaliers d'un lot (défaut : les 34 localités ``pilotes_regions``).
 
     Renvoie, pour le contrôle de cohérence, les analyses 3-horaires brutes (µg/m³)
     groupées par mois : {grandeur: {code: {(a, m): [valeurs]}}}."""
-    points = points_journalier()
+    points = points_journalier() if points is None else points
     par_jour: dict[str, dict[str, dict[date, float]]] = {
         g: defaultdict(dict) for g in PARAMETRES_EAC4
     }
@@ -373,12 +411,12 @@ def ecrire_journalier(
             pm25_sup_pm10_3h += int((champs["pm2_5"][:, j, k] > champs["pm10"][:, j, k]).sum())
         print(f"3h {annee} : extrait", flush=True)
 
-    for grandeur, contrat in CONTRATS_EAC4_JOURNALIERS.items():
+    for grandeur, contrat in contrats.items():
         series = [
             (code, lat, lon, sorted(par_jour[grandeur][code].items()))
             for code, _, lat, lon in points
         ]
-        cible = ecrire_series_journalieres(contrat, LOT_AEROSOLS_JOURNALIER, series)
+        cible = ecrire_series_journalieres(contrat, lot, series)
         tout = np.array([v for _, _, _, ms in series for _, v in ms])
         print(
             f"{grandeur} journalier : {len(series)} séries -> {cible.name} ; "
@@ -410,6 +448,37 @@ def controler_coherence(
             )
 
 
+MOIS_INCOHERENT_SOURCE: tuple[int, int] = (2024, 3)  # mensuel servi ≠ ses analyses (ADR-0022)
+
+
+def controler_coherence_lot(
+    mensuel: dict[str, dict[str, dict[tuple[int, int], float]]],
+    analyses: dict[str, dict[str, dict[tuple[int, int], list[float]]]],
+    codes: list[str],
+) -> None:
+    """Mensuel servi vs moyenne des analyses 3-horaires du mois, sur tout un lot.
+
+    Résumé par grandeur, mars 2024 à part (incohérence de la source, ADR-0022)."""
+    for grandeur in PARAMETRES_EAC4:
+        hors: list[tuple[float, float]] = []
+        mars_2024: list[tuple[float, float]] = []
+        for code in codes:
+            for cle, servi in mensuel[grandeur][code].items():
+                moyenne = float(np.mean(analyses[grandeur][code][cle]))
+                rel = abs(servi - moyenne) / moyenne * 100 if moyenne else 0.0
+                ecart = (abs(servi - moyenne), rel)
+                (mars_2024 if cle == MOIS_INCOHERENT_SOURCE else hors).append(ecart)
+        print(
+            f"Cohérence {len(codes)} localités {grandeur} : hors mars 2024 "
+            f"({len(hors)} localités-mois) écart max {max(e for e, _ in hors):.4f} µg/m³ "
+            f"({max(r for _, r in hors):.4f} %) ; mars 2024 ({len(mars_2024)} localités) "
+            f"écart de {min(e for e, _ in mars_2024):.4f} à {max(e for e, _ in mars_2024):.4f} "
+            f"µg/m³ (moyen {np.mean([e for e, _ in mars_2024]):.4f}, max "
+            f"{max(r for _, r in mars_2024):.4f} %)",
+            flush=True,
+        )
+
+
 def main() -> None:
     parseur = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parseur.add_argument("--cache", type=Path, default=Path(".cache/cams_eac4"))
@@ -418,9 +487,26 @@ def main() -> None:
     parseur.add_argument(
         "--telecharger-seulement", action="store_true", help="remplir le cache sans écrire"
     )
+    parseur.add_argument(
+        "--departements",
+        action="store_true",
+        help="journalier des 108 départements (lot departements) au lieu des 34 localités",
+    )
     args = parseur.parse_args()
+    if args.departements and args.granularite == "mensuel":
+        parseur.error("--departements écrit le journalier : --granularite mensuel exclue.")
     archives = telecharger(args.cache, args.paralleles, args.granularite)
     if args.telecharger_seulement:
+        return
+    nom_mensuel = f"mensuel_{ANNEE_DEBUT_EAC4}_{ANNEE_FIN_EAC4}"
+    if args.departements:
+        points = points_journalier_departements()
+        analyses = ecrire_journalier(
+            archives, points, LOT_JOURNALIER_DEPARTEMENTS, CONTRATS_PARTICULES_DEPARTEMENTS
+        )
+        if nom_mensuel in archives:  # contrôle seulement : le mensuel n'est pas réécrit
+            servi = _par_mois(extraire_mensuel(archives[nom_mensuel]))
+            controler_coherence_lot(servi, analyses, [code for code, _, _, _ in points])
         return
     mensuel = analyses = None
     if args.granularite in ("mensuel", "tout"):

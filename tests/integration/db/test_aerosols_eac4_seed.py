@@ -23,6 +23,7 @@ from kuma_data_core.db.seeds.aerosols_civ import (
     LOT_AEROSOLS_JOURNALIER,
     LOT_AEROSOLS_MENSUEL,
 )
+from kuma_data_core.db.seeds.journalier_departements_civ import points_journalier_departements
 from kuma_data_core.db.seeds.lots_civ import points_journalier, points_nationaux
 from kuma_data_core.db.seeds.series_csv import ContratSerie, lire_series, lire_series_journalieres
 
@@ -30,6 +31,8 @@ pytestmark = pytest.mark.integration
 
 _MENSUELLES = {code for code, _, _, _ in points_nationaux()}
 _JOURNALIERES = {code for code, _, _, _ in points_journalier()}
+# Journalier étendu aux 108 départements par la migration 0048 (ADR-0031), testé à part.
+_DEPARTEMENTS = {code for code, _, _, _ in points_journalier_departements()}
 _CONTRATS = [*CONTRATS_EAC4_MENSUELS.values(), *CONTRATS_EAC4_JOURNALIERS.values()]
 
 # Calendrier recalculé indépendamment des contrats : 2003-01 → 2025-12.
@@ -92,7 +95,10 @@ def test_source_grandeurs_et_unite(db_session: Session) -> None:
 
 @pytest.mark.parametrize("contrat", _CONTRATS, ids=_id)
 def test_series(db_session: Session, contrat: ContratSerie) -> None:
-    """Une série par localité du lot, et aucune autre série PM EAC4 de même granularité."""
+    """Une série par localité du lot, et aucune autre série PM EAC4 de même granularité.
+
+    Hors, pour le journalier, le lot des 108 départements (migration 0048, testé à part).
+    """
     rows = db_session.execute(
         text(
             """
@@ -107,6 +113,8 @@ def test_series(db_session: Session, contrat: ContratSerie) -> None:
         ),
         {"g": contrat.grandeur_code, "gr": contrat.granularite},
     ).all()
+    if _journalier(contrat):
+        rows = [r for r in rows if r.localite not in _DEPARTEMENTS]
     assert sorted(r.code for r in rows) == _codes(contrat)
     assert {r.localite for r in rows} == _localites(contrat)
     for r in rows:
@@ -288,7 +296,8 @@ def test_resolveurs_api(db_session: Session) -> None:
     """Les résolveurs PM de l'API trouvent les séries journalières, et elles seules.
 
     - PR réaliste : ``_chercher_serie_pm_cams`` (source ``cams_eac4``, granularité
-      journalière) aux 34 localités du lot ; rien ailleurs (le mensuel est ignoré).
+      journalière) aux 34 localités du lot ; aux 108 autres, la série journalière du
+      lot départements (0048), jamais le mensuel.
     - Proxy de salissure : depuis la série PM2.5 journalière, la compagne PM10
       (``_chercher_serie_compagne`` : même source, même granularité, période recouvrante).
     - Lecture : index journalier contigu de 2003-01-01 à 2025-12-31 (HSU).
@@ -309,7 +318,14 @@ def test_resolveurs_api(db_session: Session) -> None:
                 JOIN localites loc ON loc.id = s.localite_id WHERE s.code = ANY(:c)
                 """
             ),
-            {"c": [c for contrat in _CONTRATS for c in _codes(contrat)]},
+            {
+                "c": [c for contrat in _CONTRATS for c in _codes(contrat)]
+                + [
+                    c.code_serie(code)
+                    for c in CONTRATS_EAC4_JOURNALIERS.values()
+                    for code in _DEPARTEMENTS
+                ]
+            },
         ).all()
     }
     localite_id = dict(
@@ -320,10 +336,7 @@ def test_resolveurs_api(db_session: Session) -> None:
     for code in sorted(_MENSUELLES):
         for grandeur, contrat in CONTRATS_EAC4_JOURNALIERS.items():
             trouve = _chercher_serie_pm_cams(db_session, localite_id[code], grandeur)
-            if code in _JOURNALIERES:
-                assert trouve == ids[(code, contrat.code_serie(code))], (code, grandeur)
-            else:
-                assert trouve is None, (code, grandeur)
+            assert trouve == ids[(code, contrat.code_serie(code))], (code, grandeur)
 
     for code in sorted(_JOURNALIERES):
         source = _resoudre_serie_source(

@@ -142,7 +142,12 @@ def pilote(conn: Connection) -> str:
 
 @pytest.fixture(scope="module")
 def mensuel_seul(conn: Connection) -> str:
-    """Localité à GHI NASA POWER mensuel seulement (pas de journalier)."""
+    """Localité à GHI NASA POWER mensuel, de préférence sans journalier.
+
+    Depuis le journalier des 108 départements (ADR-0031), toutes les localités du
+    mensuel ont aussi un journalier : on prend alors la première. Les tests qui
+    l'utilisent ne lisent que ses séries mensuelles.
+    """
     code = conn.execute(
         text(
             """
@@ -151,14 +156,15 @@ def mensuel_seul(conn: Connection) -> str:
             JOIN sources s ON s.id = sm.source_id
             WHERE s.code = 'nasa_power' AND sm.grandeur_code = 'ghi'
               AND sm.granularite = 'mensuel' AND sm.actif
-              AND NOT EXISTS (SELECT 1 FROM series_metadonnees j
-                              WHERE j.localite_id = l.id AND j.granularite = 'journalier')
-            ORDER BY l.code LIMIT 1
+            ORDER BY EXISTS (SELECT 1 FROM series_metadonnees j
+                             WHERE j.localite_id = l.id AND j.granularite = 'journalier'),
+                     l.code
+            LIMIT 1
             """
         )
     ).scalar()
     if code is None:
-        pytest.skip("Aucune localité à GHI NASA POWER mensuel seul en base.")
+        pytest.skip("Aucune localité à GHI NASA POWER mensuel en base.")
     return str(code)
 
 
