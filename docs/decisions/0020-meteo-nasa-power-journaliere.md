@@ -89,6 +89,10 @@ modifier l'API, depuis les 34 séries GHI journalières NASA (1991-2025) :
 | `_resoudre_serie_albedo_journalier` | `albedo_surface`, journalier, même localité et source | série trouvée aux 34 points |
 | `_chercher_serie_pluie_nasa` (salissure) | pluie journalière `nasa_power` recouvrant la fenêtre des PM (2021-01 → 2025-08) | série trouvée aux 34 points |
 
+*Révisé par l'ADR-0033 : la salissure et le PR réaliste prennent désormais la pluie
+journalière GPM IMERG (`_chercher_serie_pluie_salissure`), jamais celle de NASA POWER
+(ADR-0032).*
+
 Le GHI, la T2M et la pluie partagent le même `periode_debut` : c'est ce qui
 rend la recherche stricte de compagne possible. Une série DNI ou DHI (2001)
 n'a pas de compagne T2M de même début, sans conséquence : les endpoints

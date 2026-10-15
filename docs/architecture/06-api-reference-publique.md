@@ -635,8 +635,11 @@ de l'irradiation annuelle.
 par salissure (`% = (1 − ratio HSU) × 100`, modèle HSU pvlib), à partir
 d'une série PM2.5 **journalière** (source `cams_eac4`). Compagnes
 automatiques : PM10 (même source, pattern 3.7.4) et précipitation
-journalière (source `nasa_power`, résolveur cross-source dédié qui
-retient la série recouvrant la plage des PM). Alignement par
+journalière **GPM IMERG** (source `gpm_imerg`, résolveur cross-source dédié
+qui retient la série recouvrant la plage des PM). La pluie NASA POWER
+(`PRECTOTCORR`) n'est jamais retenue : ses jours extrêmes fantômes et sa
+rupture de 2016-2017 fausseraient les épisodes de lessivage (ADR-0032,
+ADR-0033). Alignement par
 intersection des dates. Réponse : `periode`, `mesures` (perte par jour),
 `surface_tilt_deg`, `cleaning_threshold_mm`, `limite`. Erreurs :
 `400 INCOMPATIBILITE_SOURCE_GRANDEUR` si la série n'est pas une PM2.5,
@@ -649,8 +652,9 @@ trou (le modèle HSU est path-dependant).
 `correction` (`aucune`, `temperature`, `salissure`,
 `temperature_salissure`, défaut `temperature_salissure`). Série source
 = GHI **journalière** (sinon `400 INCOMPATIBILITE_SOURCE_GRANDEUR`) ;
-compagnes selon le mode : T2M et précipitation (même source et même
-granularité que le GHI, pattern 3.7.4), PM2.5 et PM10 cross-source
+compagnes selon le mode : T2M (même source et même granularité que le
+GHI, pattern 3.7.4), précipitation journalière GPM IMERG (`gpm_imerg`,
+même résolveur que la salissure), PM2.5 et PM10 cross-source
 `cams_eac4`. Paramètres query : `pr_fourni` `[0..1]` (obligatoire),
 `correction`, `noct_degc` et `coeff_temp_pourcent_par_degc`
 (obligatoires si la correction inclut la température, sinon
@@ -1097,9 +1101,9 @@ effectivement présentes se lisent via `/v1/series`.
 | `t2m` | Température à 2 m | °C | NASA POWER (MERRA-2), ERA5 (CDS) | `T2M` |
 | `rh2m` | Humidité relative à 2 m | % | NASA POWER (MERRA-2) | `RH2M` |
 | `vent_2m`, `vent_10m` | Vent à 2 m, à 10 m | m/s | NASA POWER (MERRA-2) ; ERA5 (CDS) pour `vent_10m` | `WS2M`, `WS10M` |
-| `precipitation` | Précipitation | mm/jour | NASA POWER (MERRA-2 corrigé), ERA5 (CDS) | `PRECTOTCORR` |
+| `precipitation` | Précipitation | mm/jour | NASA POWER (MERRA-2 corrigé), ERA5 (CDS), GPM IMERG (via NASA POWER, source des épisodes de lessivage) | `PRECTOTCORR`, `IMERG_PRECTOT` |
 | `albedo_surface` | Albédo de surface | sans dimension | NASA POWER (CERES) | `ALLSKY_SRF_ALB` |
-| `pm2_5`, `pm10` | Particules fines / grossières | µg/m³ | aucune série (source prévue : CAMS EAC4) | |
+| `pm2_5`, `pm10` | Particules fines / grossières | µg/m³ | CAMS EAC4 (ADS Copernicus) | `particulate_matter_2.5um`, `particulate_matter_10um` |
 
 Granularités de l'instance Côte d'Ivoire (révision 0044) : tout est
 **mensuel** aux 142 localités (31 régions, 111 départements) ; le GHI,
@@ -1361,7 +1365,9 @@ un déploiement se lit via `/v1/series` (filtre `source`).
 | `cams_radiation` | Copernicus Atmosphere Monitoring Service / ECMWF | GHI, DNI et DHI au point, mensuels | B |
 | `sarah3_monthly` | CM SAF / EUMETSAT (via PVGIS JRC) | GHI et DNI au point, mensuels | B |
 | `era5_pvgis` | ECMWF, servi par PVGIS (JRC) | GHI et DNI mensuels, source de comparaison (saut de 2021 signalé dans les notes) | B |
-| `ecmwf_era5` | ECMWF (Copernicus C3S), accès direct CDS | Météo mensuelle (T2M, vent à 10 m, précipitation), seconde source météo | B |
+| `ecmwf_era5` | ECMWF (Copernicus C3S), accès direct CDS | Météo mensuelle (T2M, vent à 10 m, précipitation) et pluie journalière, seconde source météo | B |
+| `gpm_imerg` | NASA GPM (IMERG Final Run V07), servi par NASA POWER | Pluie journalière des épisodes de lessivage (salissure, PR réaliste), ADR-0033 | B |
+| `cams_eac4` | Copernicus Atmosphere Monitoring Service / ECMWF | PM2.5 et PM10, mensuels et journaliers (modèle de salissure) | B |
 | `kuma_calculs` | Kuma | Couche éditoriale (grandeurs dérivées) | C |
 
 ### 7.2 Normes techniques mobilisées (couche C)
