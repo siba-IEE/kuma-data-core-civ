@@ -34,9 +34,10 @@ from fastapi import Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from kuma_data_core.api.codes_erreur import CodeErreur
+from kuma_data_core.api.v1.schemas.parametres import noms_modeles_parametres
 from kuma_data_core.core.logging import obtenir_logger
 
 
@@ -121,6 +122,22 @@ async def handler_validation_requete(request: Request, exc: Exception) -> JSONRe
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content=erreur.model_dump(exclude_none=True),
     )
+
+
+async def handler_validation_parametres(request: Request, exc: Exception) -> JSONResponse:
+    """``ValidationError`` d'un modèle de paramètres de requête → 422.
+
+    Les modèles injectés par ``Depends()`` sont construits après la validation
+    propre de FastAPI : l'erreur d'un ``model_validator`` croisant plusieurs
+    paramètres n'est pas une ``RequestValidationError``. Seuls les modèles qui
+    héritent de ``ParametresRequete`` sont concernés ; toute autre
+    ``ValidationError`` reste une erreur serveur (filet générique).
+    """
+    if isinstance(exc, ValidationError) and exc.title in noms_modeles_parametres():
+        return await handler_validation_requete(
+            request, RequestValidationError(exc.errors(include_url=False))
+        )
+    return await handler_exception_generique(request, exc)
 
 
 async def handler_exception_generique(request: Request, exc: Exception) -> JSONResponse:

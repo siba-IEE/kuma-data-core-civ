@@ -3,27 +3,31 @@
 FastAPI construit ces modèles **après** sa propre validation des paramètres :
 une erreur levée par un ``model_validator`` croisant plusieurs paramètres (ex.
 ``periode_fin < periode_debut``) sort donc en ``pydantic.ValidationError``, que
-FastAPI ne convertit pas, et finissait en 500 ``SERVEUR_ERREUR_INTERNE``. Cette
-base la convertit en ``RequestValidationError`` : la réponse est le 422
-``VALIDATION_VALEUR_INVALIDE`` habituel, avec le détail de l'erreur.
+FastAPI ne convertit pas, et finissait en 500 ``SERVEUR_ERREUR_INTERNE``.
 
-Seuls les modèles de paramètres en héritent : une ``ValidationError`` levée
-ailleurs (construction d'une réponse) reste une erreur serveur.
+Les modèles de paramètres héritent de ``ParametresRequete`` ; le gestionnaire
+``handler_validation_parametres`` (``api/erreurs.py``) répond 422
+``VALIDATION_VALEUR_INVALIDE`` pour une ``ValidationError`` de l'un d'eux, et
+laisse toute autre ``ValidationError`` (construction d'une réponse) en erreur
+serveur.
 """
 
 from __future__ import annotations
 
-from typing import Any
-
-from fastapi.exceptions import RequestValidationError
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 
 
 class ParametresRequete(BaseModel):
-    """Modèle de paramètres de requête : erreurs de validation en 422."""
+    """Modèle de paramètres de requête : ses erreurs de validation sont des 422."""
 
-    def __init__(self, /, **data: Any) -> None:
-        try:
-            super().__init__(**data)
-        except ValidationError as exc:
-            raise RequestValidationError(exc.errors(include_url=False)) from exc
+
+def noms_modeles_parametres() -> frozenset[str]:
+    """Noms (``ValidationError.title``) de tous les modèles de paramètres."""
+    noms: set[str] = set()
+    a_visiter: list[type[BaseModel]] = [ParametresRequete]
+    while a_visiter:
+        classe = a_visiter.pop()
+        for sous_classe in classe.__subclasses__():
+            noms.add(sous_classe.__name__)
+            a_visiter.append(sous_classe)
+    return frozenset(noms)
