@@ -111,8 +111,9 @@ def test_fraction_diffuse_prolongee(db_session: Session) -> None:
 def test_mise_en_garde_era5(db_session: Session) -> None:
     """Le saut ERA5 de 2021 est signalé sur les séries ERA5 et dérivées d'ERA5, et sur elles seules.
 
-    568 séries annotées par 0033, plus les 284 séries HEP et productible ERA5 de 0038
-    (ADR-0023), qui portent la même phrase dès leur création.
+    568 séries annotées par 0033, plus les séries dérivées du GHI ERA5 qui portent la
+    même phrase dès leur création : 284 séries HEP et productible (0038, ADR-0023) et
+    142 séries d'indice de clarté (0041, ADR-0026).
     """
     attendues = {c.code_serie(code) for c in CONTRATS_ERA5.values() for code in _LOCALITES} | {
         e.code_serie(code)
@@ -127,6 +128,8 @@ def test_mise_en_garde_era5(db_session: Session) -> None:
         for code in _LOCALITES
     }
     assert len(attendues) == 852
+    attendues |= {f"kt_era5_{code}" for code in _LOCALITES}
+    assert len(attendues) == 994
     annotees = {
         row.code
         for row in db_session.execute(

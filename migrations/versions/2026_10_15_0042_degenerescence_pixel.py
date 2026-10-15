@@ -1,7 +1,7 @@
 """degenerescence_pixel
 
 Revision ID: 0042
-Revises: 0040
+Revises: 0041
 Create Date: 2026-10-15
 
 **Dégénérescence de pixel** (grandeur ``degenerescence_pixel``, id 34) — la
@@ -53,7 +53,7 @@ from kuma_data_core.db.seeds.lots_civ import CONTRATS_MENSUELS, FIN_EXTENSION, p
 
 # revision identifiers, used by Alembic.
 revision: str = "0042"
-down_revision: str | Sequence[str] | None = "0040"
+down_revision: str | Sequence[str] | None = "0041"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
