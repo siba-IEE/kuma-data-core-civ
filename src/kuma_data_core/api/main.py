@@ -23,11 +23,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import ValidationError
 
 from kuma_data_core.api.erreurs import (
     ExceptionKuma,
     handler_exception_generique,
     handler_exception_kuma,
+    handler_validation_parametres,
     handler_validation_requete,
 )
 from kuma_data_core.api.v1.routeur import routeur_v1
@@ -101,6 +103,7 @@ def creer_application() -> FastAPI:
     # quand on passe un handler typé sur ``Exception`` ; nos handlers le sont déjà.
     app.add_exception_handler(ExceptionKuma, handler_exception_kuma)
     app.add_exception_handler(RequestValidationError, handler_validation_requete)
+    app.add_exception_handler(ValidationError, handler_validation_parametres)
     app.add_exception_handler(Exception, handler_exception_generique)
 
     @app.middleware("http")
