@@ -1,7 +1,8 @@
 """Calcul à la volée de la grandeur F1 ``ghi_exceedance``.
 
 Exceedance inter-annuelle de l'irradiation annuelle, dérivée de la série
-GHI mensuelle 1991-2020 NASA POWER (climatologie OMM, 6 villes pilotes).
+GHI mensuelle NASA POWER restreinte à la normale climatologique OMM
+1991-2020 (toute localité dotée d'une telle série).
 
 Méthode :
 
@@ -13,7 +14,10 @@ Méthode :
 
    ``nb_jours`` vient de ``calendar.monthrange(y, m)[1]`` (stdlib),
    années bissextiles incluses (1992, 1996, 2000, 2004, 2008, 2012,
-   2016, 2020 = 8 sur 30).
+   2016, 2020 = 8 sur 30). Une série prolongée au-delà de 2020 (ou
+   commençant avant 1991) n'entre dans le calcul que par ses années
+   1991-2020, et seules les années **complètes** (12 mois) sont retenues
+   (:func:`calculer_totaux_annuels_climatologiques`).
 
 2. **Percentiles** (fonction pure ci-dessous) : sur les 30 totaux annuels,
    extraction de deux percentiles via ``numpy.percentile`` (interpolation
@@ -41,10 +45,12 @@ Limites documentées (cf. champ ``limite`` de la réponse API) :
   ne propage pas l'incertitude de modèle satellitaire. Ce n'est pas un
   P90 bancable complet (qui nécessiterait un modèle d'erreur explicite,
   type PRUVE, et idéalement une calibration sol).
-- Kindia et Mamou tombent dans le même pixel CERES SYN1deg NASA POWER
-  (110 km à 10° N) ; leurs séries mensuelles 1991-2020 sont
-  strictement identiques et leurs P50/P90 le sont donc aussi. Note
-  ajoutée au champ ``limite`` pour ces deux villes.
+- jumeaux de pixel : des localités voisines peuvent tomber dans la même
+  cellule de la grille NASA POWER (~1°) ; leurs séries mensuelles
+  1991-2020 sont alors strictement identiques et leurs P50/P90 le sont
+  donc aussi. Les jumeaux sont détectés à la lecture (identité exacte
+  des séries, :func:`grouper_jumeaux_pixel`) et cités au champ
+  ``limite``.
 - base 30 ans, **incertitude d'échantillonnage** sur P90 (10ᵉ
   percentile sur 30 valeurs = 3 valeurs en queue). Mention qualitative
   dans le champ ``limite``.
@@ -57,7 +63,7 @@ Task 16 / "Best Practices for Solar Resource Assessment").
 from __future__ import annotations
 
 import calendar
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Literal
 
 import numpy as np
@@ -91,17 +97,8 @@ ANNEE_FIN_CLIMATOLOGIE: int = 2020
 NOMBRE_ANNEES_BASE: int = ANNEE_FIN_CLIMATOLOGIE - ANNEE_DEBUT_CLIMATOLOGIE + 1
 """30 années : base d'échantillonnage des percentiles."""
 
-
-# === Constantes co-localisation ===========================================
-
-PAIRES_COLOCALISEES_D29: dict[str, str] = {
-    "gin_kindia": "gin_mamou",
-    "gin_mamou": "gin_kindia",
-}
-"""Paires de villes co-localisées dans le même pixel CERES SYN1deg NASA
-POWER (110 km à 10° N). Pour ces villes, P50/P90 sont strictement
-identiques à la ville jumelle. Mention au champ ``limite`` de la
-réponse API."""
+MOIS_PAR_AN: int = 12
+"""Nombre de mois d'une année complète (garde-fou des totaux annuels)."""
 
 
 # === Modele de resultat ===================================================
@@ -187,3 +184,70 @@ def calculer_totaux_annuels(
         nb_jours = calendar.monthrange(annee, mois)[1]
         totaux[annee] = totaux.get(annee, 0.0) + valeur * nb_jours
     return totaux
+
+
+def calculer_totaux_annuels_climatologiques(
+    mesures_mensuelles: Sequence[tuple[int, int, float]],
+    annee_debut: int = ANNEE_DEBUT_CLIMATOLOGIE,
+    annee_fin: int = ANNEE_FIN_CLIMATOLOGIE,
+) -> dict[int, float]:
+    """Totaux annuels restreints à la fenêtre climatologique, années complètes seulement.
+
+    Une série peut déborder la normale (séries prolongées au-delà de 2020,
+    ou commençant avant 1991) : les mois hors ``[annee_debut, annee_fin]``
+    sont écartés, puis chaque année retenue doit porter ses **12 mois**
+    (un total sur une année incomplète serait sous-estimé et fausserait les
+    percentiles). Pondération journalière identique à
+    :func:`calculer_totaux_annuels`.
+
+    Args:
+        mesures_mensuelles : Séquence de tuples ``(annee, mois, valeur)``
+            (valeur en kWh/m²/jour), dans un ordre quelconque.
+        annee_debut : première année de la fenêtre (incluse, défaut 1991).
+        annee_fin : dernière année de la fenêtre (incluse, défaut 2020).
+
+    Returns:
+        Dict ``{annee: total_annuel_kwh_par_m2}`` des seules années complètes
+        de la fenêtre, trié par année.
+    """
+    dans_fenetre = [
+        (annee, mois, valeur)
+        for annee, mois, valeur in mesures_mensuelles
+        if annee_debut <= annee <= annee_fin
+    ]
+    mois_par_annee: dict[int, set[int]] = {}
+    for annee, mois, _ in dans_fenetre:
+        mois_par_annee.setdefault(annee, set()).add(mois)
+    totaux = calculer_totaux_annuels(dans_fenetre)
+    return {
+        annee: totaux[annee]
+        for annee in sorted(totaux)
+        if len(mois_par_annee[annee]) == MOIS_PAR_AN
+    }
+
+
+def grouper_jumeaux_pixel(
+    vecteurs: Mapping[str, tuple[float, ...]],
+) -> dict[str, list[str]]:
+    """Pour chaque localité, les AUTRES localités au vecteur de valeurs identique.
+
+    Sur une grille fixe (NASA POWER, ~1°), deux localités de la même cellule
+    lisent la valeur de la cellule : leurs séries climatologiques mensuelles sont
+    **strictement identiques** (jumeaux de pixel), donc leurs P50/P90 aussi.
+    Égalité **exacte** : une quasi-égalité désigne des points distincts.
+
+    Args:
+        vecteurs : ``{code_localite: valeurs mensuelles ordonnées}``.
+
+    Returns:
+        ``{code_localite: [codes des jumeaux, triés]}`` (liste vide = point
+        résolu).
+    """
+    groupes: dict[tuple[float, ...], list[str]] = {}
+    for code, vecteur in vecteurs.items():
+        groupes.setdefault(vecteur, []).append(code)
+    return {
+        code: sorted(autre for autre in membres if autre != code)
+        for membres in groupes.values()
+        for code in membres
+    }
