@@ -19,7 +19,16 @@ ADR-0018), albédo **2001-2025**. Mêmes périmètres que le rayonnement : mensu
 (``points_journalier`` : 3 pilotes + 31 régions).
 
 Les bornes sont des garde-fous de sanité (rejet à la lecture du CSV), pas des
-valeurs attendues ; la borne basse est 0 pour toutes les grandeurs.
+valeurs attendues ; la borne basse est 0 pour toutes les grandeurs. Celles des
+précipitations (60 mm/jour en mensuel, 1000 en journalier) couvrent des valeurs
+**aberrantes servies telles quelles** par NASA POWER — San-Pédro, septembre 2022 :
+56,28 mm/jour en moyenne mensuelle, 726,74 mm le 16 (ERA5 : 0,9 mm) — gravées
+sans correction et signalées dans la note publique des séries (ADR-0019).
+
+Unités : aucune conversion. L'unité servie par NASA POWER
+(``parameters.<P>.units``) et l'unité de la grandeur au référentiel doivent
+correspondre (``UNITES_NASA``, ``UNITES_REFERENTIEL``) ; un écart arrête
+l'ingesteur ou la migration.
 """
 
 from __future__ import annotations
@@ -35,6 +44,12 @@ LOT_METEO_JOURNALIER: str = "pilotes_regions"
 ANNEE_DEBUT_METEO: int = 1991
 ANNEE_FIN_METEO: int = 2025
 
+BORNE_PRECIPITATION_MENSUELLE: float = 60.0
+"""mm/jour : couvre le maximum servi (56,28, San-Pédro 2022-09), environ 1 800 mm/mois."""
+
+BORNE_PRECIPITATION_JOURNALIERE: float = 1000.0
+"""mm/jour : couvre le maximum servi (726,74, San-Pédro le 16/09/2022)."""
+
 # grandeur -> (paramètre NASA POWER, méthode, première année, libellé,
 #              borne mensuelle, borne journalière)
 PARAMETRES_METEO_NASA: dict[str, tuple[str, str, int, str, float, float]] = {
@@ -42,7 +57,14 @@ PARAMETRES_METEO_NASA: dict[str, tuple[str, str, int, str, float, float]] = {
     "rh2m": ("RH2M", "reanalyse", 1991, "Humidité relative à 2 m", 100.0, 100.0),
     "vent_2m": ("WS2M", "reanalyse", 1991, "Vent à 2 m", 15.0, 25.0),
     "vent_10m": ("WS10M", "reanalyse", 1991, "Vent à 10 m", 20.0, 30.0),
-    "precipitation": ("PRECTOTCORR", "reanalyse", 1991, "Précipitations", 50.0, 500.0),
+    "precipitation": (
+        "PRECTOTCORR",
+        "reanalyse",
+        1991,
+        "Précipitations",
+        BORNE_PRECIPITATION_MENSUELLE,
+        BORNE_PRECIPITATION_JOURNALIERE,
+    ),
     "albedo_surface": (
         "ALLSKY_SRF_ALB",
         "modele_satellitaire",
@@ -76,4 +98,24 @@ CONTRATS_METEO_NASA_MENSUELS: dict[str, ContratSerie] = {
 }
 CONTRATS_METEO_NASA_JOURNALIERS: dict[str, ContratSerie] = {
     g: _contrat(g, "journalier") for g in PARAMETRES_METEO_NASA
+}
+
+# Unité servie par NASA POWER (``parameters.<P>.units``, sondage du 2026-10-15).
+UNITES_NASA: dict[str, str] = {
+    "t2m": "C",
+    "rh2m": "%",
+    "vent_2m": "m/s",
+    "vent_10m": "m/s",
+    "precipitation": "mm/day",
+    "albedo_surface": "dimensionless",
+}
+
+# Code de l'unité de chaque grandeur au référentiel (``unites.code``, seed 0002).
+UNITES_REFERENTIEL: dict[str, str] = {
+    "t2m": "degree_celsius",
+    "rh2m": "pourcent",
+    "vent_2m": "metre_par_seconde",
+    "vent_10m": "metre_par_seconde",
+    "precipitation": "mm_par_jour",
+    "albedo_surface": "sans_unite",
 }
