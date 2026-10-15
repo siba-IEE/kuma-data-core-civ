@@ -80,7 +80,7 @@ def auditer_series(
             SELECT :table, 'public', :op, 'serie:' || s.id,
                    jsonb_build_object(
                        'audit', 'par_serie',
-                       'revision', :revision,
+                       'revision', CAST(:revision AS text),
                        'serie_code', s.code,
                        'nb_mesures', m.nb,
                        'premier_instant', m.premier,
