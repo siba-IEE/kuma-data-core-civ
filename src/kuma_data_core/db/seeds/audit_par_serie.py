@@ -45,12 +45,15 @@ def empreinte_fichier(contrat: ContratSerie, lot: str) -> str:
 
 @contextmanager
 def audit_ligne_suspendu(bind: sa.Connection) -> Iterator[None]:
-    """Suspend l'audit ligne à ligne de ``mesures_ressource`` dans la transaction."""
+    """Suspend l'audit ligne à ligne de ``mesures_ressource`` dans la transaction.
+
+    Pas de ``finally`` : si le bloc échoue, la transaction de migration est
+    annulée et la suspension avec elle ; réactiver le trigger dans une
+    transaction en échec masquerait l'erreur d'origine.
+    """
     bind.execute(sa.text(f"ALTER TABLE {TABLE_MESURES} DISABLE TRIGGER {TRIGGER_AUDIT_MESURES}"))
-    try:
-        yield
-    finally:
-        bind.execute(sa.text(f"ALTER TABLE {TABLE_MESURES} ENABLE TRIGGER {TRIGGER_AUDIT_MESURES}"))
+    yield
+    bind.execute(sa.text(f"ALTER TABLE {TABLE_MESURES} ENABLE TRIGGER {TRIGGER_AUDIT_MESURES}"))
 
 
 def auditer_series(
