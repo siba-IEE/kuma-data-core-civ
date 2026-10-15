@@ -395,7 +395,7 @@ def test_series_de_pluie_existantes_intactes(db_session: Session) -> None:
     source et localité ; le résolveur de pluie de l'API (salissure), épinglé sur
     NASA POWER, continue de la trouver aux 142 localités.
     """
-    from kuma_data_core.api.v1.grandeurs import _chercher_serie_pluie_nasa
+    from kuma_data_core.api.v1.grandeurs import _chercher_serie_pluie_salissure
 
     prefixe_nasa = "nasa_power_precipitation_journalier"
     attendu_nasa: dict[str, Agregats] = {}
@@ -436,6 +436,7 @@ def test_series_de_pluie_existantes_intactes(db_session: Session) -> None:
             SELECT src.code AS source, COUNT(*) AS series, COUNT(DISTINCT s.localite_id) AS loc
             FROM series_metadonnees s JOIN sources src ON src.id = s.source_id
             WHERE s.grandeur_code = 'precipitation' AND s.granularite = 'journalier'
+              AND src.code IN ('nasa_power', 'ecmwf_era5')
             GROUP BY src.code
             """
         )
@@ -452,8 +453,16 @@ def test_series_de_pluie_existantes_intactes(db_session: Session) -> None:
             {"c": codes_nasa},
         )
     }
-    for localite_id, serie_id in nasa_ids.items():
-        assert (
-            _chercher_serie_pluie_nasa(db_session, localite_id, date(2021, 1, 1), date(2025, 8, 31))
-            == serie_id
+    era5_ids = {
+        r.localite_id: r.id
+        for r in db_session.execute(
+            text("SELECT localite_id, id FROM series_metadonnees WHERE code = ANY(:c)"),
+            {"c": [CONTRAT_PLUIE_ERA5_JOURNALIERE.code_serie(code) for code in _LOCALITES]},
         )
+    }
+    # La pluie des épisodes de lessivage n'est ni NASA ni ERA5 (ADR-0033).
+    for localite_id, serie_id in nasa_ids.items():
+        retenue = _chercher_serie_pluie_salissure(
+            db_session, localite_id, date(2021, 1, 1), date(2025, 8, 31)
+        )
+        assert retenue not in (serie_id, era5_ids[localite_id])

@@ -1564,21 +1564,31 @@ def grandeur_ghi_exceedance(
 # === Endpoint taux_salissure_proxy (F1 calculee_volee, soiling) =======
 
 
-def _chercher_serie_pluie_nasa(
+SOURCE_PLUIE_SALISSURE: str = "gpm_imerg"
+"""Source de la pluie journalière des épisodes de lessivage (salissure, PR réaliste).
+
+GPM IMERG (servi par NASA POWER, ``IMERG_PRECTOT``), et non la pluie NASA POWER
+``PRECTOTCORR`` : celle-ci est recalée par pentade sur CMAP « temps réel » et
+porte des jours extrêmes fantômes et une rupture vers 2016-2017 (ADR-0032) ; le
+modèle HSU, qui nettoie les modules au-delà d'un seuil de pluie journalière, en
+serait directement faussé (ADR-0033)."""
+
+
+def _chercher_serie_pluie_salissure(
     session: Session,
     localite_id: int,
     periode_debut: date,
     periode_fin: date | None,
 ) -> int | None:
-    """Résout la série de précipitation journalière NASA POWER d'une localité.
+    """Résout la série de pluie journalière des épisodes de lessivage d'une localité.
 
-    Résolveur **dédié** (la pluie est ``nasa_power``, source différente des PM
-    ``cams_eac4`` ; ``_chercher_serie_compagne`` filtre sur ``source_id`` et la
-    raterait). La source est **épinglée explicitement** : même si une autre source de
-    pluie arrive un jour, elle ne sera pas sélectionnée. Une localité peut porter
-    **plusieurs** séries de pluie NASA journalières (fenêtres distinctes) : la série
-    retenue est celle dont la plage **recouvre la fenêtre de la série PM appelante**
-    (le modèle HSU intègre la pluie sur les dates des PM) ; ordre stable sur
+    Résolveur **dédié** : la pluie vient de ``SOURCE_PLUIE_SALISSURE`` (GPM IMERG,
+    ADR-0033), source différente des PM ``cams_eac4`` et du GHI ;
+    ``_chercher_serie_compagne`` filtre sur ``source_id`` et la raterait. La source
+    est **épinglée explicitement** : la pluie NASA POWER (``PRECTOTCORR``), présente
+    aux mêmes localités, n'est jamais retenue. Si une localité porte plusieurs séries
+    de cette source (fenêtres distinctes), la série retenue est celle dont la plage
+    **recouvre la fenêtre de la série appelante** ; ordre stable sur
     ``periode_debut, id``.
     """
     row = session.execute(
@@ -1587,7 +1597,7 @@ def _chercher_serie_pluie_nasa(
             SELECT sm.id FROM series_metadonnees sm
             JOIN sources s ON s.id = sm.source_id
             WHERE sm.localite_id = :localite_id
-              AND s.code = 'nasa_power'
+              AND s.code = :source
               AND sm.grandeur_code = 'precipitation'
               AND sm.granularite = 'journalier'
               AND sm.actif = TRUE
@@ -1601,6 +1611,7 @@ def _chercher_serie_pluie_nasa(
             "localite_id": localite_id,
             "periode_debut": periode_debut,
             "periode_fin": periode_fin,
+            "source": SOURCE_PLUIE_SALISSURE,
         },
     ).first()
     return int(row.id) if row else None
@@ -1644,7 +1655,8 @@ def grandeur_taux_salissure_proxy(
        contrôle de grandeur et de granularité (400 si ce n'est pas une série
        ``pm2_5`` journalière).
     2. Compagne **PM10** (même source ``cams_eac4``, ``_chercher_serie_compagne``)
-       + compagne **precipitation** (``nasa_power``, résolveur bi-source dédié).
+       + pluie journalière **GPM IMERG** (``SOURCE_PLUIE_SALISSURE``, résolveur
+       dédié, ADR-0033).
        L'une absente -> 400.
     3. Lecture des 3 séries (``mesures_ressource``, courantes) ; alignement par
        **intersection des dates** (fenêtre effective = overlap PM ∩ pluie, bornée
@@ -1657,7 +1669,7 @@ def grandeur_taux_salissure_proxy(
     _exiger_serie_journaliere(serie, code_serie_source, "taux_salissure_proxy")
 
     pm10_serie_id = _chercher_serie_compagne(session, serie, "pm10")
-    pluie_serie_id = _chercher_serie_pluie_nasa(
+    pluie_serie_id = _chercher_serie_pluie_salissure(
         session, serie.localite_id, serie.periode_debut, serie.periode_fin
     )
     if pm10_serie_id is None or pluie_serie_id is None:
@@ -1665,8 +1677,9 @@ def grandeur_taux_salissure_proxy(
             code=CodeErreur.INCOMPATIBILITE_SOURCE_GRANDEUR,
             message=(
                 "Le proxy de salissure (HSU) exige la compagne PM10 (meme source EAC4) "
-                "et la serie de precipitation journaliere (source nasa_power) pour la "
-                f"localite de {code_serie_source!r} ; au moins une est absente."
+                "et la serie de precipitation journaliere (source "
+                f"{SOURCE_PLUIE_SALISSURE}) pour la localite de {code_serie_source!r} ; "
+                "au moins une est absente."
             ),
             statut_http=status.HTTP_400_BAD_REQUEST,
         )
@@ -1715,7 +1728,7 @@ def _chercher_serie_pm_cams(session: Session, localite_id: int, grandeur_code: s
 
     Résolveur **cross-source dédié** : les PM sont ``cams_eac4``, source différente du
     GHI source (typiquement ``nasa_power``) ; ``_chercher_serie_compagne`` filtre sur
-    ``source_id`` et les raterait. **Symétrique** du ``_chercher_serie_pluie_nasa``,
+    ``source_id`` et les raterait. **Symétrique** du ``_chercher_serie_pluie_salissure``,
     mais en sens inverse : ici c'est la PM qui est cross-source (la pluie
     l'était dans l'autre résolveur). Source épinglée explicitement, ordre stable.
     """
@@ -1754,8 +1767,9 @@ def grandeur_pr_realiste(
     """PR effectif = ``PR_fourni x ratio_T x (1 - salissure)`` selon le mode, à la volée.
 
     Source = série **GHI journalière** (fournit G + l'index de dates ; 400 si grandeur
-    != ghi ou granularité != journalier). Compagnes selon le mode : T2M et pluie (même
-    source et granularité que le GHI), PM2.5/PM10 (cross-source EAC4). Alignement par
+    != ghi ou granularité != journalier). Compagnes selon le mode : T2M (même source
+    et granularité que le GHI), pluie GPM IMERG (``SOURCE_PLUIE_SALISSURE``, ADR-0033)
+    et PM2.5/PM10 (cross-source EAC4). Alignement par
     intersection des séries du mode ; la fenêtre effective diverge donc par mode (les
     modes salissure sont bornés à l'overlap PM EAC4), avec garde-fou de contiguïté (HSU
     path-dependant). Sorties journalier + mensuel (la courbe mensuelle = la PR
@@ -1803,7 +1817,9 @@ def grandeur_pr_realiste(
     pm2_5: dict[date, float] = {}
     pm10: dict[date, float] = {}
     if besoin_salissure:
-        pluie_id = _chercher_serie_compagne(session, serie, "precipitation")
+        pluie_id = _chercher_serie_pluie_salissure(
+            session, serie.localite_id, serie.periode_debut, serie.periode_fin
+        )
         pm2_5_id = _chercher_serie_pm_cams(session, serie.localite_id, "pm2_5")
         pm10_id = _chercher_serie_pm_cams(session, serie.localite_id, "pm10")
         if pluie_id is None or pm2_5_id is None or pm10_id is None:
@@ -1811,7 +1827,8 @@ def grandeur_pr_realiste(
                 code=CodeErreur.INCOMPATIBILITE_SOURCE_GRANDEUR,
                 message=(
                     "La correction salissure exige les compagnes PM2.5/PM10 (EAC4) et "
-                    f"precipitation (nasa_power) pour la localite de {code_serie_source!r} ; "
+                    f"precipitation ({SOURCE_PLUIE_SALISSURE}) pour la localite de "
+                    f"{code_serie_source!r} ; "
                     "au moins une est absente."
                 ),
                 statut_http=status.HTTP_400_BAD_REQUEST,

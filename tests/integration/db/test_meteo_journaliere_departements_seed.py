@@ -429,7 +429,7 @@ def test_series_resolues_par_l_api(db_session: Session) -> None:
     """
     from kuma_data_core.api.v1.grandeurs import (
         _chercher_serie_compagne,
-        _chercher_serie_pluie_nasa,
+        _chercher_serie_pluie_salissure,
         _resoudre_serie_albedo_journalier,
         _resoudre_serie_source,
     )
@@ -456,9 +456,12 @@ def test_series_resolues_par_l_api(db_session: Session) -> None:
             _resoudre_serie_albedo_journalier(db_session, localite_id, 1)
             == ids[f"nasa_power_albedo_surface_journalier_{code}"]
         )
+        # La salissure ne prend jamais la pluie NASA (ADR-0032, ADR-0033).
         assert (
-            _chercher_serie_pluie_nasa(db_session, localite_id, date(2021, 1, 1), date(2025, 8, 31))
-            == ids[f"nasa_power_precipitation_journalier_{code}"]
+            _chercher_serie_pluie_salissure(
+                db_session, localite_id, date(2021, 1, 1), date(2025, 8, 31)
+            )
+            != ids[f"nasa_power_precipitation_journalier_{code}"]
         )
         if ghi_presents:
             serie = _resoudre_serie_source(db_session, f"nasa_power_ghi_journalier_{code}")

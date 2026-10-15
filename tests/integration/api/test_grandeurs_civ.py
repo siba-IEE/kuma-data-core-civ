@@ -722,7 +722,7 @@ def test_ghi_exceedance_localite_sans_serie_404(
 
 
 def _serie_pm2_5(conn: Connection) -> tuple[str, str] | None:
-    """(code série PM2.5 EAC4 journalière, localité), de préférence avec pluie NASA."""
+    """(code série PM2.5 EAC4 journalière, localité), de préférence avec pluie IMERG."""
     row = conn.execute(
         text(
             """
@@ -733,7 +733,7 @@ def _serie_pm2_5(conn: Connection) -> tuple[str, str] | None:
               AND sm.granularite = 'journalier' AND sm.actif
             ORDER BY EXISTS (SELECT 1 FROM series_metadonnees p
                              JOIN sources ps ON ps.id = p.source_id
-                             WHERE p.localite_id = l.id AND ps.code = 'nasa_power'
+                             WHERE p.localite_id = l.id AND ps.code = 'gpm_imerg'
                                AND p.grandeur_code = 'precipitation'
                                AND p.granularite = 'journalier') DESC,
                      l.code
@@ -760,7 +760,8 @@ def test_taux_salissure_proxy_recalcule_hsu(
         pytest.skip("Séries PM2.5/PM10 journalières CAMS EAC4 absentes (gravure en cours).")
     code_pm2_5, localite = trouve
     code_pm10 = _code_serie(conn, localite, "pm10", source="cams_eac4")
-    code_pluie = _code_serie(conn, localite, "precipitation")
+    # Pluie des épisodes de lessivage : GPM IMERG, jamais NASA POWER (ADR-0033).
+    code_pluie = _code_serie(conn, localite, "precipitation", source="gpm_imerg")
     reponse = _get(client, headers_auth, f"taux_salissure_proxy/{code_pm2_5}")
     if code_pm10 is None or code_pluie is None:
         _erreur(reponse, 400, CodeErreur.INCOMPATIBILITE_SOURCE_GRANDEUR)
@@ -844,8 +845,8 @@ def test_pr_realiste_salissure(
         pytest.skip("Séries PM2.5/PM10 journalières CAMS EAC4 absentes (gravure en cours).")
     _, localite = trouve
     ghi = _code_serie(conn, localite, "ghi")
-    if ghi is None or _code_serie(conn, localite, "precipitation") is None:
-        pytest.skip("GHI ou précipitation journalière NASA POWER absente pour cette localité.")
+    if ghi is None or _code_serie(conn, localite, "precipitation", source="gpm_imerg") is None:
+        pytest.skip("GHI NASA POWER ou pluie journalière IMERG absente pour cette localité.")
     corps = _ok(
         _get(client, headers_auth, f"pr_realiste/{ghi}", pr_fourni=0.8, correction="salissure")
     )
