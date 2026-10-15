@@ -48,6 +48,13 @@ le projet suit le versionnement sémantique.
   localités pour les 4 sources, mensuel et annuel (568 séries, 173 524 lignes) ;
   `H0` de Duffie & Beckman (Spencer, 1361 W/m²), validé contre `TOA_SW_DWN` de
   NASA (biais −0,01 %). Janvier le plus clair, août le plus couvert partout.
+- Jalon 3 — **humidex** (migration 0045, ADR-0030) aux 34 localités du
+  journalier, mensuel et annuel 1991-2025 (34 séries, 15 470 lignes),
+  définition héritée inchangée (Masterton & Richardson, moyenne des humidex
+  journaliers). Moyenne nationale 34,5 °C apparents (1991-2020), du Tonkpi
+  (32,1) à la côte (jusqu'à 36,6) ; écart nord-sud de 9 °C en Harmattan, effacé
+  en mousson ; aucun jour ≥ 45. La hausse 2024-2025 suit celle de la T2M NASA,
+  que ERA5 ne confirme pas : pas de conclusion de réchauffement.
 - Jalon 3 — **dégénérescence de pixel matérialisée** (migration 0042, ADR-0027) :
   une ligne par série mensuelle brute (familles détectées en base) ; NASA ne
   distingue que 35 séries sur 142 localités, les groupes coïncident exactement
@@ -65,6 +72,11 @@ le projet suit le versionnement sémantique.
 
 ### Modifié
 
+- **API : paramètres contradictoires en 422** (`periode_fin < periode_debut`,
+  plage horaire de plus de 366 jours, correction thermique sans NOCT), qui
+  répondaient 500 ; seules les erreurs des modèles de paramètres sont
+  converties. Documentation de l'API et fiches de grandeurs réécrites pour un
+  moteur générique avec des exemples ivoiriens.
 - **Mise en garde ERA5 précisée** (migration 0043, ADR-0018, ADR-0021) : le saut
   de 2021 vient de la réanalyse ERA5 elle-même (rayonnement ERA5 du CDS +3,6 %,
   rapport PVGIS / CDS stable entre 0,996 et 0,999), pas du traitement PVGIS. La
