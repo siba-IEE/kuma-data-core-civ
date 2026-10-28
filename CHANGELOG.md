@@ -7,6 +7,17 @@ le projet suit le versionnement sémantique.
 
 ### Ajouté
 
+- Jalon 2 — **rayonnement journalier CAMS** (migration 0054, ADR-0035) : GHI, DNI
+  et DHI CAMS Radiation au jour UTC aux 142 localités, 2005-2025 (426 séries,
+  3 265 554 mesures). 126 séries distinctes, contre 35 pour NASA POWER. Les
+  jours que CAMS ne sert pas (2005-01-11 et 12, 2006-01-10 et 11 partout,
+  2006-09-23 dans 54 localités) sont des lacunes explicites, jamais bouchées.
+  La moyenne des jours redonne le mensuel CAMS à 0,0001 près de 2005 à 2020,
+  mais CAMS a révisé 2021-2025 depuis la gravure de son mensuel (GHI +0,018
+  kWh/m²/jour en moyenne, jusqu'à 0,118) : mise en garde ajoutée aux 426
+  séries mensuelles, valeurs conservées. Face à NASA : GHI +10,9 %, DNI +57 %,
+  DHI +3,8 %.
+
 - Jalon 2 — **température et vent journaliers ERA5** (migration 0053, ADR-0034) :
   deuxième source journalière de la météo, aux 142 localités, 1991-2025 (284
   séries, 3 630 656 mesures). Moyenne des 24 heures du jour UTC au nœud 0,25°
