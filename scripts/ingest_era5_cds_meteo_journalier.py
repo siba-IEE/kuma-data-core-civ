@@ -89,7 +89,10 @@ DEBUT_HORAIRE = datetime(CONTRAT.annee_debut, 1, 1)
 NB_HEURES = NB_JOURS * HEURES_PAR_JOUR
 PLAGE = f"{PREMIER_JOUR.isoformat()}/{date(CONTRAT.annee_fin, 12, 31).isoformat()}"
 # Écart maximal toléré entre la moyenne des jours d'un mois et le mensuel 0036.
-TOLERANCES_MENSUEL: dict[str, float] = {"t2m": 0.01, "vent_10m": 0.01}
+# Vent : le jeu ponctuel ne sert pas ``10m_wind_speed`` ; la vitesse horaire est
+# recalculée depuis les composantes u et v, et la moyenne des jours reste un peu
+# sous le mensuel ``10m_wind_speed`` (écart systématique, publié par le script).
+TOLERANCES_MENSUEL: dict[str, float] = {"t2m": 0.01, "vent_10m": 0.15}
 ESSAIS = 30
 ATTENTE_S = 60
 FILE_PLEINE = "Maximum number queued requests"
