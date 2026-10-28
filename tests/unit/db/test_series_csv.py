@@ -111,3 +111,47 @@ def test_journalier_aller_retour_et_completude() -> None:
     assert serie["mesures"][0] == (date(2020, 1, 1), 5.0) and len(serie["mesures"]) == 366
     with pytest.raises(ValueError, match="jours"):
         ecrire_series_journalieres(contrat, "test", [(*_POINT, mesures[1:])])
+
+
+def test_journalier_lacunes_explicites() -> None:
+    """Contrat à lacunes : jour sans valeur écrit vide, compté, absent des mesures."""
+    from dataclasses import replace
+    from datetime import date, timedelta
+
+    from kuma_data_core.db.seeds.series_csv import (
+        ecrire_series_journalieres,
+        lire_series_journalieres,
+        nb_jours,
+    )
+
+    contrat = ContratSerie(
+        source_code="cams_radiation",
+        source_id=13,
+        source_libelle="CAMS Radiation",
+        prefixe_code="cams_ghi_journalier",
+        grandeur_code="ghi",
+        methode_collecte="modele_satellitaire",
+        annee_debut=2020,
+        annee_fin=2020,
+        borne_max=9.0,
+        granularite="journalier",
+        lacunes_admises=True,
+    )
+    jours = [date(2020, 1, 1) + timedelta(days=i) for i in range(nb_jours(contrat))]
+    trous = {date(2020, 1, 11), date(2020, 1, 12)}
+    mesures: list[tuple[date, float | None]] = [(j, None if j in trous else 5.0) for j in jours]
+    cible = ecrire_series_journalieres(contrat, "test", [(*_POINT, mesures)])
+    assert (
+        "civ_gbokle,4.95,-6.08333333,2020-01-11,\n" in gzip.decompress(cible.read_bytes()).decode()
+    )
+    (serie,) = lire_series_journalieres(contrat, "test")
+    assert serie["lacunes"] == sorted(trous)
+    assert len(serie["mesures"]) == 364 and all(v == 5.0 for _, v in serie["mesures"])
+    # Un jour manquant reste une erreur : la lacune est explicite, jamais implicite.
+    with pytest.raises(ValueError, match="jours"):
+        ecrire_series_journalieres(contrat, "test", [(*_POINT, mesures[1:])])
+    # Sans ``lacunes_admises``, une valeur vide est refusée.
+    with pytest.raises(ValueError, match="valeur absente"):
+        ecrire_series_journalieres(
+            replace(contrat, lacunes_admises=False), "test", [(*_POINT, mesures)]
+        )
