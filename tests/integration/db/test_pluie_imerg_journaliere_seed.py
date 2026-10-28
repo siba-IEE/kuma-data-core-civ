@@ -481,6 +481,7 @@ def test_series_de_pluie_existantes_intactes(db_session: Session) -> None:
         "nasa_power": (142, 142),
         "ecmwf_era5": (142, 142),
         "gpm_imerg": (142, 142),
+        "chirps": (142, 142),  # 0055 (ADR-0036)
     }
     sur_source = db_session.execute(
         text("SELECT COUNT(*) FROM series_metadonnees WHERE source_id = :s"), {"s": SOURCE_ID}
@@ -489,8 +490,8 @@ def test_series_de_pluie_existantes_intactes(db_session: Session) -> None:
 
 
 def test_identite_des_sources_recalee(db_session: Session) -> None:
-    """La prochaine source insérée sans id ne heurte pas les ids figés 16 et 17."""
+    """La prochaine source insérée sans id ne heurte pas les ids figés 16 à 18 (18 : 0055)."""
     row = db_session.execute(
         text("SELECT last_value, (SELECT MAX(id) FROM sources) AS maxi FROM sources_id_seq")
     ).one()
-    assert row.last_value >= row.maxi == 17
+    assert row.last_value >= row.maxi == 18

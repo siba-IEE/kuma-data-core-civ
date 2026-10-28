@@ -91,6 +91,10 @@ from kuma_data_core.db.seeds.series_csv import ecrire_series_journalieres
 CONTRAT = CONTRAT_PLUIE_CHIRPS
 URL_MENSUEL = "https://data.chc.ucsb.edu/products/CHIRPS/v3.0/monthly/global/cogs"
 TOLERANCE_MENSUEL = 0.05  # mm/mois : somme des jours - CHIRPS mensuel
+MOIS_INCOHERENTS: frozenset[tuple[int, int]] = frozenset({(2000, 2)})
+"""Mois où le journalier CHIRPS v3 ne redonne pas le mensuel (constat du 2026-10-28) :
+en février 2000, 5 des 121 mailles diffèrent (jusqu'à 4,1 mm), les jours 21 à 29
+portant de la pluie où le mensuel est nul, ou l'inverse. Publié, non corrigé."""
 # Le serveur du CHC refuse (HTTP 403) les rafales de requêtes : lectures une à
 # une, pause entre deux jours, nouvelles tentatives de plus en plus espacées.
 ESSAIS = 15
@@ -206,12 +210,24 @@ def _comparer_au_mensuel(
             for k, am in enumerate(mois)
         ]
     )
+    for k, am in enumerate(mois):
+        if am in MOIS_INCOHERENTS:
+            hors = np.flatnonzero(np.abs(ecarts[k]) > TOLERANCE_MENSUEL)
+            print(
+                f"{am[0]}-{am[1]:02d} (incohérence connue) : {hors.size} mailles, "
+                + ", ".join(
+                    f"{mailles[c]} jours {ecarts[k, c] + mensuel[k, c]:.3f} / mensuel "
+                    f"{mensuel[k, c]:.3f}"
+                    for c in hors
+                )
+            )
+    autres = np.array([am not in MOIS_INCOHERENTS for am in mois])
+    ecarts = ecarts[autres]
     pire = np.unravel_index(np.argmax(np.abs(ecarts)), ecarts.shape)
     print(
-        f"somme des jours - CHIRPS mensuel ({ecarts.size} mois-mailles) : moyen "
-        f"{ecarts.mean():+.5f}, médian |écart| {np.median(np.abs(ecarts)):.5f}, max "
-        f"{abs(ecarts[pire]):.5f} mm/mois ({mois[pire[0]]}, maille {mailles[pire[1]]}, "
-        f"mensuel {mensuel[pire]:.3f})"
+        f"somme des jours - CHIRPS mensuel, hors mois incohérents ({ecarts.size} "
+        f"mois-mailles) : moyen {ecarts.mean():+.6f}, médian |écart| "
+        f"{np.median(np.abs(ecarts)):.6f}, max {abs(ecarts[pire]):.6f} mm/mois"
     )
     if abs(ecarts[pire]) > TOLERANCE_MENSUEL:
         raise SystemExit(f"Écart au mensuel CHIRPS au-delà de {TOLERANCE_MENSUEL} mm/mois.")
