@@ -107,7 +107,7 @@ def test_completude_mesures(db_session: Session, seed: ModuleType) -> None:
                 """
                 SELECT m.annee, m.mois FROM mesures_ressource_mensuelles m
                 JOIN series_metadonnees s ON s.id = m.serie_id
-                WHERE s.code = :c
+                WHERE s.code = :c AND m.valide_au IS NULL
                 """
             ),
             {"c": code},
@@ -127,7 +127,7 @@ def test_invariants_mesures(db_session: Session, seed: ModuleType) -> None:
             SELECT m.statut, m.niveau_confiance_derive, m.valeur
             FROM mesures_ressource_mensuelles m
             JOIN series_metadonnees s ON s.id = m.serie_id
-            WHERE s.code = ANY(:c)
+            WHERE s.code = ANY(:c) AND m.valide_au IS NULL
             """
         ),
         {"c": codes},
@@ -167,7 +167,7 @@ def test_valeurs_fideles_au_seed(db_session: Session, seed: ModuleType) -> None:
                     """
                     SELECT m.valeur FROM mesures_ressource_mensuelles m
                     JOIN series_metadonnees s ON s.id = m.serie_id
-                    WHERE s.code = :c AND m.annee = :a AND m.mois = :mo
+                    WHERE s.code = :c AND m.annee = :a AND m.mois = :mo AND m.valide_au IS NULL
                     """
                 ),
                 {"c": s["code"], "a": annee, "mo": mois},
@@ -197,6 +197,7 @@ def test_dhi_jamais_superieur_au_ghi(db_session: Session, source: str) -> None:
                 JOIN series_metadonnees s ON s.id = m.serie_id
                 JOIN sources src ON src.id = s.source_id AND src.code = :s
                 WHERE s.grandeur_code IN ('dhi', 'ghi') AND s.granularite = 'mensuel'
+                  AND m.valide_au IS NULL
                 GROUP BY s.localite_id, m.annee, m.mois
             ) t
             """
@@ -209,7 +210,7 @@ def test_dhi_jamais_superieur_au_ghi(db_session: Session, source: str) -> None:
             SELECT COUNT(*) FROM mesures_ressource_mensuelles m
             JOIN series_metadonnees s ON s.id = m.serie_id
             JOIN sources src ON src.id = s.source_id AND src.code = :s
-            WHERE s.grandeur_code = 'dhi' AND s.granularite = 'mensuel'
+            WHERE s.grandeur_code = 'dhi' AND s.granularite = 'mensuel' AND m.valide_au IS NULL
             """
         ),
         {"s": source},

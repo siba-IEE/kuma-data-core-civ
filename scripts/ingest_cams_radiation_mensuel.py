@@ -42,6 +42,13 @@ Python. Requêtes ADS en parallèle ; les CSV bruts sont mis en cache
 **Extension 2021-2025** (ADR-0018) : ``--extension`` interroge les 142 localités
 (pilotes + lots) sur 2021-2025 et écrit ``cams_<grandeur>_mensuel_ext_2021_2025.csv.gz``
 (mêmes codes de série que les séries déjà gravées, qu'elle prolonge).
+
+**Révision 2021-2025** (ADR-0037) : ``--revision`` interroge les 142 localités sur
+2005-2025, exige que 2005-2020 soit identique, à 4 décimales, aux valeurs gravées
+(pilotes et lots), et écrit les valeurs 2021-2025 servies ce jour dans
+``cams_<grandeur>_mensuel_revision_2026_10_28.csv.gz`` (lot ``LOT_REVISION_CAMS``),
+sans toucher au CSV d'extension, que la migration 0030 relit à chaque rejeu.
+L'écart entre valeurs gravées et révisées est publié.
 """
 
 from __future__ import annotations
@@ -51,21 +58,28 @@ import calendar
 import math
 import os
 import tempfile
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
 import cdsapi  # type: ignore[import-untyped]
 
+from kuma_data_core.db.seeds import (
+    series_cams_dhi_mensuel_civ,
+    series_cams_dni_mensuel_civ,
+    series_cams_ghi_mensuel_civ,
+)
 from kuma_data_core.db.seeds.localites_civ_seed_data import LOCALITES_SEED
 from kuma_data_core.db.seeds.lots_civ import (
     CONTRATS_CAMS,
     LOT_EXTENSION,
+    LOT_REVISION_CAMS,
     contrat_extension,
     points_lot,
     points_nationaux,
 )
-from kuma_data_core.db.seeds.series_csv import ecrire_series
+from kuma_data_core.db.seeds.series_csv import ecrire_series, lire_series
 
 DATASET = "cams-solar-radiation-timeseries"
 ADS_URL = "https://ads.atmosphere.copernicus.eu/api"
@@ -81,6 +95,10 @@ POINTS: tuple[str, ...] = ("civ_dep_abidjan", "civ_dep_yamoussoukro", "civ_dep_k
 # Garde-fous de sanité (kWh/m²/jour, moyenne journalière du mois).
 BORNES_MAX: dict[str, float] = {"ghi": 9.0, "dni": 12.0, "dhi": 6.0}
 GRANDEURS: tuple[str, ...] = ("ghi", "dni", "dhi")
+ESSAIS = 30
+ATTENTE_S = 60
+FILE_PLEINE = "Maximum number queued requests"
+"""Refus de l'ADS quand la file de l'utilisateur est pleine : pas un échec."""
 
 _SEEDS = Path(__file__).resolve().parents[1] / "src/kuma_data_core/db/seeds"
 
@@ -210,10 +228,24 @@ def _telecharger_en_cache(lat: float, lon: float, cache: Path) -> Path:
             return chemin
         except (SystemExit, ValueError):
             chemin.unlink()  # cache corrompu ou incomplet : on redemande
-    with tempfile.TemporaryDirectory(dir=cache) as tmp:
-        partiel = _telecharger(_client(), lat, lon, Path(tmp))
-        partiel.replace(chemin)
-    return chemin
+    essai = 0
+    while True:
+        with tempfile.TemporaryDirectory(dir=cache) as tmp:
+            try:
+                partiel = _telecharger(_client(), lat, lon, Path(tmp))
+            except Exception as erreur:  # file ADS pleine, requête en échec, coupure réseau…
+                derniere = str(erreur).strip().splitlines()[-1] if str(erreur).strip() else ""
+                if FILE_PLEINE not in derniere:  # file pleine : on attend son tour
+                    essai += 1
+                    print(f"{lat:.4f}, {lon:.4f} : essai {essai} échoué ({derniere})", flush=True)
+                    if essai >= ESSAIS:
+                        raise SystemExit(
+                            f"{lat:.4f}, {lon:.4f} : abandon après {ESSAIS} essais."
+                        ) from erreur
+                time.sleep(ATTENTE_S)
+                continue
+            partiel.replace(chemin)
+        return chemin
 
 
 def main_extension(cache: Path, paralleles: int) -> None:
@@ -257,6 +289,63 @@ def _telecharger_et_ecrire(
             series.append((code, lat, lon, m))
         cible = ecrire_series(contrats[grandeur], lot, series)
         print(f"{grandeur}: {len(series)} séries -> {cible.name}")
+
+
+def _graves_2005_2020(grandeur: str) -> dict[str, dict[tuple[int, int], float]]:
+    """Mensuel CAMS 2005-2020 gravé : pilotes (modules) et lots régions, départements."""
+    seed = {
+        "ghi": series_cams_ghi_mensuel_civ,
+        "dni": series_cams_dni_mensuel_civ,
+        "dhi": series_cams_dhi_mensuel_civ,
+    }[grandeur]
+    series = list(seed.SERIES)
+    for lot in ("regions", "departements"):
+        series += lire_series(CONTRATS_CAMS[grandeur], lot)
+    return {s["localite_code"]: {(a, m): v for a, m, v in s["mesures"]} for s in series}
+
+
+def main_revision(cache: Path, paralleles: int) -> None:
+    """Révision CAMS 2021-2025 : 2005-2020 identique exigé, 2021-2025 écrit à part (ADR-0037)."""
+    global ANNEE_DEBUT, ANNEE_FIN
+    ANNEE_DEBUT, ANNEE_FIN = 2005, 2025
+    cache.mkdir(parents=True, exist_ok=True)
+    points = points_nationaux()
+
+    def traiter(point: tuple[str, str, float, float]) -> tuple[str, float, float, Any]:
+        code, _, lat, lon = point
+        mesures = _extraire(_telecharger_en_cache(lat, lon, cache))
+        print(f"{code}: téléchargé", flush=True)
+        return code, lat, lon, mesures
+
+    with ThreadPoolExecutor(max_workers=paralleles) as pool:
+        resultats = list(pool.map(traiter, points))
+    contrats = {g: contrat_extension(CONTRATS_CAMS[g]) for g in GRANDEURS}
+    for grandeur in GRANDEURS:
+        graves = _graves_2005_2020(grandeur)
+        anciens = {
+            s["localite_code"]: {(a, m): v for a, m, v in s["mesures"]}
+            for s in lire_series(contrats[grandeur], LOT_EXTENSION)
+        }
+        series = []
+        ecarts: list[float] = []
+        for code, lat, lon, mesures in resultats:
+            m = mesures[grandeur]
+            if len(m) != 21 * 12:
+                raise SystemExit(f"{code}/{grandeur} : {len(m)} mois, 252 attendus")
+            avant = [(a, mo, v) for a, mo, v in m if a <= 2020]
+            differents = [(a, mo, v) for a, mo, v in avant if graves[code][(a, mo)] != v]
+            if differents:
+                raise SystemExit(f"{code}/{grandeur} : 2005-2020 a changé : {differents[:3]!r}")
+            revises = [(a, mo, v) for a, mo, v in m if a >= 2021]
+            ecarts += [v - anciens[code][(a, mo)] for a, mo, v in revises]
+            series.append((code, lat, lon, revises))
+        cible = ecrire_series(contrats[grandeur], LOT_REVISION_CAMS, series)
+        absolus = sorted(abs(e) for e in ecarts)
+        print(
+            f"{grandeur}: 2005-2020 identique aux 142 localités ; 2021-2025 révisé - gravé "
+            f"({len(ecarts)} mois) : moyen {math.fsum(ecarts) / len(ecarts):+.6f}, "
+            f"max {absolus[-1]:.4f}, inchangés {sum(e == 0 for e in ecarts)} -> {cible.name}"
+        )
 
 
 def _dq(valeur: str) -> str:
@@ -335,8 +424,13 @@ if __name__ == "__main__":
     parseur.add_argument(
         "--extension", action="store_true", help="prolonger 2021-2025 (142 localités)"
     )
+    parseur.add_argument(
+        "--revision", action="store_true", help="valeurs 2021-2025 révisées (ADR-0037)"
+    )
     args = parseur.parse_args()
-    if args.extension:
+    if args.revision:
+        main_revision(args.cache, args.paralleles)
+    elif args.extension:
         main_extension(args.cache, args.paralleles)
     elif args.lot:
         main_lot(args.lot, args.cache, args.paralleles)

@@ -161,7 +161,7 @@ def test_completude_et_fenetre_commune(db_session: Session, ecart: Ecart) -> Non
             """
             SELECT gm.annee_debut, gm.annee_fin, gm.mois, gm.periode_type
             FROM grandeurs_metier gm
-            WHERE gm.grandeur_code = :c
+            WHERE gm.grandeur_code = :c AND gm.valide_au IS NULL
             """
         ),
         {"c": ecart.grandeur_code},
@@ -184,7 +184,7 @@ def test_invariants_confiance_statut(db_session: Session, ecart: Ecart) -> None:
         text(
             """
             SELECT niveau_confiance_derive, statut, version_formule
-            FROM grandeurs_metier WHERE grandeur_code = :c
+            FROM grandeurs_metier WHERE grandeur_code = :c AND valide_au IS NULL
             """
         ),
         {"c": ecart.grandeur_code},
@@ -207,7 +207,7 @@ def test_valeurs_fideles_au_calcul(db_session: Session, ecart: Ecart) -> None:
             SELECT loc.code AS localite, gm.annee_debut AS annee, gm.mois, gm.valeur
             FROM grandeurs_metier gm
             JOIN localites loc ON loc.id = gm.localite_id
-            WHERE gm.grandeur_code = :c
+            WHERE gm.grandeur_code = :c AND gm.valide_au IS NULL
             """
         ),
         {"c": ecart.grandeur_code},

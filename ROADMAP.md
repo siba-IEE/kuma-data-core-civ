@@ -99,8 +99,11 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
       [ADR-0035](decisions/0035-rayonnement-cams-journalier.md)) : 126 séries
       distinctes (35 pour NASA) ; lacunes CAMS explicites, jamais bouchées ;
       révision CAMS de 2021-2025 constatée sur le mensuel gravé.
-  - [ ] Graver la révision 2021-2025 du mensuel CAMS par versionnement
-        temporel (décision ouverte).
+  - [x] Révision 2021-2025 du mensuel CAMS gravée par versionnement
+        temporel (migration 0056,
+        [ADR-0037](decisions/0037-revision-cams-mensuel.md)) : valeurs
+        remplacées closes, jamais supprimées ; grandeurs dérivées CAMS
+        recalculées et versionnées de même.
 - [x] **Pluie journalière CHIRPS v3.0** aux 142 localités, 1991-2025
       (migration 0055, [ADR-0036](decisions/0036-pluie-chirps-journaliere.md)) :
       quatrième source de pluie journalière, nouvelle source `chirps` ; le
