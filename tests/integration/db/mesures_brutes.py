@@ -3,8 +3,10 @@
 Réunit, pour une (source, grandeur), les **seeds pilotes** (modules Python, 3
 points), les **CSV des lots nationaux** (31 régions + 108 départements,
 ADR-0015) et les **CSV d'extension 2021+** (142 localités, ADR-0018), relus
-indépendamment de la base. Sert au recalcul en boucle fermée
-des écarts et de la fraction diffuse sur les 142 localités (ADR-0017).
+indépendamment de la base. Pour CAMS, les valeurs 2021-2025 courantes sont celles
+du **CSV de révision** (migration 0056, ADR-0037), qui remplacent celles de
+l'extension. Sert au recalcul en boucle fermée des écarts et de la fraction
+diffuse sur les 142 localités (ADR-0017).
 """
 
 from __future__ import annotations
@@ -17,6 +19,7 @@ from kuma_data_core.db.seeds.lots_civ import (
     CONTRATS_NASA,
     CONTRATS_SARAH3,
     LOT_EXTENSION,
+    LOT_REVISION_CAMS,
     contrat_extension,
 )
 from kuma_data_core.db.seeds.series_csv import ContratSerie, lire_series
@@ -51,4 +54,10 @@ def mesures_mensuelles(seed_pilote: ModuleType) -> dict[str, dict[tuple[int, int
         for a, m, v in s["mesures"]:
             assert (a, m) not in base, (s["localite_code"], a, m)  # aucun recouvrement
             base[(a, m)] = v
+    if contrat.source_code == "cams_radiation":  # révision 2021-2025 (0056, ADR-0037)
+        for s in lire_series(contrat_extension(contrat), LOT_REVISION_CAMS):
+            base = out[s["localite_code"]]
+            for a, m, v in s["mesures"]:
+                assert (a, m) in base, (s["localite_code"], a, m)  # remplace, n'ajoute pas
+                base[(a, m)] = v
     return out

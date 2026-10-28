@@ -66,7 +66,7 @@ def test_series_mensuelles_prolongees(db_session: Session, contrat: ContratSerie
             """
             SELECT MAX(m.annee) AS derniere, COUNT(*) FILTER (WHERE m.annee > 2020) AS ajout
             FROM mesures_ressource_mensuelles m JOIN series_metadonnees s ON s.id = m.serie_id
-            WHERE s.code = ANY(:c)
+            WHERE s.code = ANY(:c) AND m.valide_au IS NULL
             """
         ),
         {"c": codes},

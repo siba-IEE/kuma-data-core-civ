@@ -176,7 +176,7 @@ def test_completude_domaine_confiance(db_session: Session) -> None:
                    gm.statut, gm.version_formule, gm.annee_debut, gm.annee_fin,
                    gm.localite_id = s.localite_id AS meme_localite
             FROM grandeurs_metier gm JOIN series_metadonnees s ON s.id = gm.series_metadonnees_id
-            WHERE gm.grandeur_code = :c
+            WHERE gm.grandeur_code = :c AND gm.valide_au IS NULL
             """
         ),
         {"c": GRANDEUR_CODE},
@@ -209,7 +209,7 @@ def test_valeurs_fideles_au_calcul(db_session: Session, source: Source) -> None:
                    gm.mois, gm.valeur
             FROM grandeurs_metier gm JOIN localites loc ON loc.id = gm.localite_id
             JOIN series_metadonnees s ON s.id = gm.series_metadonnees_id
-            WHERE gm.grandeur_code = :c AND s.code LIKE :prefixe
+            WHERE gm.grandeur_code = :c AND s.code LIKE :prefixe AND gm.valide_au IS NULL
             """
         ),
         {"c": GRANDEUR_CODE, "prefixe": f"kt\\_{source.jeton}\\_%"},

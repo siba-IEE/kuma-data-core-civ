@@ -141,7 +141,7 @@ def _lignes(db_session: Session, source: Source) -> list[Row[Any]]:
                 FROM grandeurs_metier gm
                 JOIN series_metadonnees s ON s.id = gm.series_metadonnees_id
                 JOIN localites loc ON loc.id = gm.localite_id
-                WHERE s.code = ANY(:c)
+                WHERE s.code = ANY(:c) AND gm.valide_au IS NULL
                 """
             ),
             {"c": [_code(g, source, loc) for g in GRANDEURS for loc in _LOCALITES]},
@@ -266,6 +266,7 @@ def test_somme_mensuelle_egale_annuel(db_session: Session) -> None:
                        MAX(gm.valeur) FILTER (WHERE gm.periode_type = 'annuel') AS annuel
                 FROM grandeurs_metier gm
                 WHERE gm.grandeur_code IN ('hep', 'productible_specifique_theorique')
+                  AND gm.valide_au IS NULL
                 GROUP BY gm.series_metadonnees_id, gm.annee_debut
             ) t
             """
@@ -310,7 +311,7 @@ def test_equivalence_avec_le_journalier_herite(db_session: Session) -> None:
             FROM grandeurs_metier gm
             JOIN series_metadonnees s ON s.id = gm.series_metadonnees_id
             JOIN localites loc ON loc.id = gm.localite_id
-            WHERE s.code = ANY(:c)
+            WHERE s.code = ANY(:c) AND gm.valide_au IS NULL
             """
         ),
         {"c": [f"hep_nasa_power_{loc}" for loc in localites]},

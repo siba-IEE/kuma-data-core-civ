@@ -7,9 +7,9 @@ de la localité, telle que servie par CAMS (v4.6), en kWh/m²/jour.
 
 Vérifie les métadonnées, la **fidélité exacte** au CSV gzip committé (agrégats
 par série), les **lacunes** (jours non servis par CAMS, jamais gravés), les 126
-séries distinctes, la cohérence avec le mensuel CAMS et la révision 2021-2025
-citées par les notes, la comparaison avec NASA POWER, la mise en garde ajoutée
-aux 426 séries mensuelles et l'audit par série.
+séries distinctes, la cohérence avec le mensuel CAMS courant (2021-2025 révisé
+par la migration 0056, ADR-0037), la comparaison avec NASA POWER, la mise en
+garde des 426 séries mensuelles et l'audit par série.
 """
 
 from __future__ import annotations
@@ -91,7 +91,7 @@ def test_series_metadonnees(db_session: Session, grandeur: str) -> None:
             "jour UTC (jour civil local, UTC+0)",
             "2005-01-11, 2005-01-12, 2006-01-10 et 2006-01-11 partout",
             "2006-09-23 dans 54 localités",
-            "CAMS a révisé ses valeurs après la gravure du mensuel",
+            "2021-2025 compris depuis la révision du mensuel CAMS (migration 0056",
             "ADR-0011, ADR-0035",
         ):
             assert fragment in r.note_publique, fragment
@@ -150,7 +150,7 @@ def test_series_distinctes(db_session: Session, grandeur: str) -> None:
 
 
 def _ecarts_au_mensuel(db_session: Session, grandeur: str) -> dict[str, tuple[Decimal, ...]]:
-    """Moyenne des jours servis - mensuel CAMS gravé, par catégorie de mois."""
+    """Moyenne des jours servis - mensuel CAMS courant, par catégorie de mois."""
     rows = db_session.execute(
         text(
             """
@@ -183,20 +183,18 @@ def _ecarts_au_mensuel(db_session: Session, grandeur: str) -> dict[str, tuple[De
     return {r.categorie: (r.n, r.moyen, r.maxi) for r in rows}
 
 
-@pytest.mark.parametrize(
-    ("grandeur", "moyen", "maxi"),
-    [("ghi", "0.018", "0.118"), ("dni", "0.025", "0.154"), ("dhi", "-0.002", "0.031")],
-)
-def test_coherence_avec_le_mensuel_et_revision(
-    db_session: Session, grandeur: str, moyen: str, maxi: str
-) -> None:
-    """2005-2020 : mensuel redonné à 0,0001 près ; 2021-2025 : révision citée par les notes."""
+@pytest.mark.parametrize("grandeur", _GRANDEURS)
+def test_coherence_avec_le_mensuel(db_session: Session, grandeur: str) -> None:
+    """Mois complets : mensuel courant redonné à 0,0001 près, 2021-2025 compris (0056).
+
+    Avant la révision gravée par 0056, 2021-2025 s'écartait du mensuel gravé en
+    0030 ; l'ampleur de la révision est vérifiée par ``test_revision_cams_mensuel_seed``.
+    """
     ecarts = _ecarts_au_mensuel(db_session, grandeur)
     n, _, ecart_max = ecarts["autres"]
     assert n == 26_926 and ecart_max < Decimal("0.0001")
-    n, ecart_moyen, ecart_max = ecarts["revision"]
-    assert n == 8_520
-    assert (round(ecart_moyen, 3), round(ecart_max, 3)) == (Decimal(moyen), Decimal(maxi))
+    n, _, ecart_max = ecarts["revision"]
+    assert n == 8_520 and ecart_max < Decimal("0.0001")
     assert ecarts["lacune"][0] == 338
 
 
@@ -251,7 +249,10 @@ def test_comparaison_nasa_citee(
 
 @pytest.mark.parametrize("grandeur", _GRANDEURS)
 def test_mise_en_garde_mensuelle(db_session: Session, grandeur: str) -> None:
-    """Les 142 séries mensuelles CAMS de la grandeur portent la mise en garde, elles seules."""
+    """Les 142 séries mensuelles CAMS de la grandeur portent la mise en garde, elles seules.
+
+    Ajoutée par 0054, remplacée par celle de la révision gravée (migration 0056).
+    """
     porteuses = {
         r.code
         for r in db_session.execute(
@@ -259,7 +260,7 @@ def test_mise_en_garde_mensuelle(db_session: Session, grandeur: str) -> None:
                 "SELECT code FROM series_metadonnees "
                 "WHERE strpos(note_publique, :f) > 0 AND grandeur_code = :g"
             ),
-            {"f": "Révision de la source (ADR-0035) : CAMS a révisé 2021-2025", "g": grandeur},
+            {"f": "Révision de la source (ADR-0037) : CAMS a révisé 2021-2025", "g": grandeur},
         )
     }
     assert porteuses == {f"cams_{grandeur}_mensuel_{code}" for code in _LOCALITES}

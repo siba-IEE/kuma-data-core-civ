@@ -140,6 +140,18 @@ le projet suit le versionnement sémantique.
 
 ### Modifié
 
+- **Révision du mensuel CAMS 2021-2025 gravée** (migration 0056, ADR-0037) :
+  premier versionnement temporel non destructif. Le mensuel CAMS servi le
+  2026-10-28 est identique au mensuel gravé de 2005 à 2020, mais CAMS a révisé
+  2021-2025 depuis la gravure de ces années. Les 25 472 mois-localités qui
+  changent (8 489 GHI, 8 502 DNI, 8 481 DHI, sur 8 520 chacun) sont clos et
+  remplacés, jamais supprimés : GHI +0,018 kWh/m²/jour en moyenne (jusqu'à
+  0,118), DNI +0,025 (jusqu'à 0,154), DHI −0,002 (jusqu'à 0,031). Les grandeurs
+  dérivées du mensuel CAMS (écarts à NASA, fraction diffuse, HEP, productible,
+  `kt`) sont recalculées sur 2021-2025 et versionnées de même (62 299 lignes).
+  Le journalier CAMS redonne de nouveau le mensuel courant à 0,0001 près sur
+  toute la période ; la mise en garde de 0054 est remplacée.
+
 - **API : paramètres contradictoires en 422** (`periode_fin < periode_debut`,
   plage horaire de plus de 366 jours, correction thermique sans NOCT), qui
   répondaient 500 ; seules les erreurs des modèles de paramètres sont

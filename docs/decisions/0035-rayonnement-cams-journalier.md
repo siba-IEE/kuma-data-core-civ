@@ -94,7 +94,7 @@ Pour le DNI, NASA reste l'aberrant bas (ADR-0012, ADR-0017).
 - Une série CAMS journalière a des trous : les calculs qui exigent des jours
   contigus, comme le modèle de salissure HSU, refusent une telle série avec une
   erreur explicite.
-- **Décision ouverte** : graver la révision 2021-2025 du mensuel CAMS par
-  versionnement temporel non destructif (anciennes valeurs closes, nouvelles
-  valeurs ouvertes). Les écarts dérivés du mensuel (ADR-0017, ADR-0026) en
-  dépendent.
+- **Décision ouverte**, tranchée par l'ADR-0037 (migration 0056) : graver la
+  révision 2021-2025 du mensuel CAMS par versionnement temporel non destructif
+  (anciennes valeurs closes, nouvelles valeurs ouvertes). Les écarts dérivés du
+  mensuel (ADR-0017, ADR-0026) en dépendent.

@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from kuma_data_core.db.seeds.lots_civ import (
     CONTRATS_MENSUELS,
     LOT_EXTENSION,
+    LOT_REVISION_CAMS,
     POINTS_PILOTES,
     contrat_extension,
     points_lot,
@@ -78,7 +79,12 @@ def test_series_metadonnees(db_session: Session, cas: tuple[str, ContratSerie]) 
 
 @pytest.mark.parametrize("cas", _CAS, ids=_id)
 def test_mesures_fideles_au_csv(db_session: Session, cas: tuple[str, ContratSerie]) -> None:
-    """Chaque mesure en base = CSV committés (lot + extension 2021+) ; confiance B, brut."""
+    """Chaque mesure courante = CSV committés (lot + extension 2021+, révisée pour CAMS).
+
+    Pour CAMS, le CSV de révision (migration 0056, ADR-0037) remplace les valeurs
+    2021-2025 de l'extension ; les lignes closes sont vérifiées par
+    ``test_revision_cams_mensuel_seed``.
+    """
     lot, contrat = cas
     localites = _localites(lot)
     codes = {contrat.code_serie(code) for code in localites}
@@ -92,13 +98,22 @@ def test_mesures_fideles_au_csv(db_session: Session, cas: tuple[str, ContratSeri
             for a, m, v in s["mesures"]
         }
     )
+    if contrat.source_code == "cams_radiation":
+        revision = {
+            (s["code"], a, m): v
+            for s in lire_series(extension, LOT_REVISION_CAMS)
+            if s["code"] in codes
+            for a, m, v in s["mesures"]
+        }
+        assert revision.keys() <= attendu.keys()  # remplace, n'ajoute pas
+        attendu.update(revision)
     rows = db_session.execute(
         text(
             """
             SELECT s.code, m.annee, m.mois, m.valeur, m.statut, m.niveau_confiance_derive
             FROM mesures_ressource_mensuelles m
             JOIN series_metadonnees s ON s.id = m.serie_id
-            WHERE s.code = ANY(:c)
+            WHERE s.code = ANY(:c) AND m.valide_au IS NULL
             """
         ),
         {"c": [contrat.code_serie(code) for code in localites]},

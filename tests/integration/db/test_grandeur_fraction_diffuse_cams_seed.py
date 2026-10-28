@@ -91,7 +91,7 @@ def test_completude_domaine_confiance(db_session: Session) -> None:
             SELECT gm.periode_type, gm.mois, gm.valeur, gm.niveau_confiance_derive, gm.statut,
                    gm.version_formule, gm.annee_debut, gm.annee_fin
             FROM grandeurs_metier gm JOIN series_metadonnees s ON s.id = gm.series_metadonnees_id
-            WHERE gm.grandeur_code = :c AND starts_with(s.code, :p)
+            WHERE gm.grandeur_code = :c AND starts_with(s.code, :p) AND gm.valide_au IS NULL
             """
         ),
         {"c": GRANDEUR_CODE, "p": PREFIXE},
@@ -117,7 +117,7 @@ def test_valeurs_fideles_au_calcul(db_session: Session) -> None:
                    gm.mois, gm.valeur
             FROM grandeurs_metier gm JOIN localites loc ON loc.id = gm.localite_id
             JOIN series_metadonnees s ON s.id = gm.series_metadonnees_id
-            WHERE gm.grandeur_code = :c AND starts_with(s.code, :p)
+            WHERE gm.grandeur_code = :c AND starts_with(s.code, :p) AND gm.valide_au IS NULL
             """
         ),
         {"c": GRANDEUR_CODE, "p": PREFIXE},
@@ -152,7 +152,7 @@ def test_coexistence_avec_nasa(db_session: Session) -> None:
                        ) AS nasa
                 FROM grandeurs_metier gm
                 JOIN series_metadonnees s ON s.id = gm.series_metadonnees_id
-                WHERE gm.grandeur_code = :c
+                WHERE gm.grandeur_code = :c AND gm.valide_au IS NULL
                 GROUP BY 1, 2, 3, 4
             ) t
             """

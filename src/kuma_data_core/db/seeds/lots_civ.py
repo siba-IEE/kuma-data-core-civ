@@ -225,6 +225,12 @@ FIN_EXTENSION: dict[str, int] = {
 }
 
 
+LOT_REVISION_CAMS: str = "revision_2026_10_28"
+"""Suffixe des CSV de révision CAMS : valeurs mensuelles 2021-2025 servies le
+2026-10-28, après la révision de ces années par CAMS (même contrat que
+l'extension ; ADR-0037). Le CSV d'extension, que 0030 relit, reste inchangé."""
+
+
 def contrat_extension(contrat: ContratSerie) -> ContratSerie:
     """Même contrat (source, préfixe, bornes), période 2021 → fin servie par la source."""
     return replace(
