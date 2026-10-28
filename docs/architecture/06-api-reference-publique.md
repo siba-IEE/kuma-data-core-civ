@@ -1099,9 +1099,9 @@ effectivement présentes se lisent via `/v1/series`.
 | `dni` | Irradiation normale directe | kWh/m²/jour | NASA POWER, CAMS Radiation, SARAH-3 et ERA5 (PVGIS) | `ALLSKY_SFC_SW_DNI` |
 | `dhi` | Irradiation diffuse horizontale | kWh/m²/jour | NASA POWER, CAMS Radiation | `ALLSKY_SFC_SW_DIFF` |
 | `t2m` | Température à 2 m | °C | NASA POWER (MERRA-2), ERA5 (CDS) | `T2M` |
-| `rh2m` | Humidité relative à 2 m | % | NASA POWER (MERRA-2) | `RH2M` |
+| `rh2m` | Humidité relative à 2 m | % | NASA POWER (MERRA-2), ERA5 (CDS, calculée heure par heure depuis la température et le point de rosée) | `RH2M` |
 | `vent_2m`, `vent_10m` | Vent à 2 m, à 10 m | m/s | NASA POWER (MERRA-2) ; ERA5 (CDS) pour `vent_10m` | `WS2M`, `WS10M` |
-| `precipitation` | Précipitation | mm/jour | NASA POWER (MERRA-2 corrigé), ERA5 (CDS), GPM IMERG (via NASA POWER, source des épisodes de lessivage) | `PRECTOTCORR`, `IMERG_PRECTOT` |
+| `precipitation` | Précipitation | mm/jour | NASA POWER (MERRA-2 corrigé), ERA5 (CDS), GPM IMERG (via NASA POWER, source des épisodes de lessivage), CHIRPS v3.0 (journalier) | `PRECTOTCORR`, `IMERG_PRECTOT` |
 | `albedo_surface` | Albédo de surface | sans dimension | NASA POWER (CERES) | `ALLSKY_SRF_ALB` |
 | `pm2_5`, `pm10` | Particules fines / grossières | µg/m³ | CAMS EAC4 (ADS Copernicus) | `particulate_matter_2.5um`, `particulate_matter_10um` |
 

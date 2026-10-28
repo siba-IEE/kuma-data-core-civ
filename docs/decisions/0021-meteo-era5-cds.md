@@ -105,7 +105,8 @@ M1 dépasse le seuil retenu (1 point), surtout en saison sèche et au nord
 M2 (produit « monthly averaged by hour of day ») réduit le biais sans
 l'annuler (Korhogo DJF −1,48). Seule la moyenne des humidités horaires est sans
 biais par construction ; elle demande les séries horaires de T et Td aux 110
-mailles (110 requêtes ponctuelles d'environ 1,5 min). Décision ouverte.
+mailles (110 requêtes ponctuelles d'environ 1,5 min). Décision ouverte, tranchée
+par l'ADR-0038 : l'humidité ERA5 est gravée par la voie horaire (migration 0057).
 
 **Albédo de surface (`albedo_surface`) — non gravé.** D'après la documentation
 ERA5, `forecast_albedo` ne vaut que pour le rayonnement **diffus** à spectre
@@ -242,7 +243,7 @@ qu'elles n'y sont pas.
   Leurs désaccords de tendance interdisent d'en tirer une tendance climatique
   sans précaution.
 - Pistes ouvertes, toutes accessibles maintenant que le CDS l'est : humidité
-  relative par la voie horaire, albédo réel (SSRD − SSR) / SSRD, ERA5-Land
+  relative par la voie horaire (gravée depuis, ADR-0038), albédo réel (SSRD − SSR) / SSRD, ERA5-Land
   (`ecmwf_era5_land`, id 12, maille 0,1°) pour réduire le partage de mailles, et
   le rayonnement ERA5 du CDS, qui doublerait le GHI ERA5 via PVGIS (rapport
   0,996 à 0,999).

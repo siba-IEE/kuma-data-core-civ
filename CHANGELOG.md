@@ -7,6 +7,16 @@ le projet suit le versionnement sémantique.
 
 ### Ajouté
 
+- Jalon 2 — **humidité relative ERA5** (migration 0057, ADR-0038) : deuxième
+  source de l'humidité relative à 2 m, journalière et mensuelle, aux 142
+  localités, 1991-2025 (284 séries, 1 874 968 mesures). ERA5 ne sert pas
+  d'humidité : elle est calculée heure par heure depuis la température et le
+  point de rosée (formule d'ECMWF), puis moyennée, ce qui évite le biais du
+  recalcul depuis les moyennes mensuelles (−1,77 point aux pilotes, décision
+  ouverte de l'ADR-0021). Face à NASA POWER, ERA5 est plus humide de 1,52 point
+  en moyenne (de −2,85 à Duékoué à +5,66 à Touba), surtout de décembre à février
+  (+5,03).
+
 - Jalon 2 — **pluie journalière CHIRPS v3.0** (migration 0055, ADR-0036) :
   quatrième source de pluie journalière, aux 142 localités, 1991-2025, nouvelle
   source `chirps` (142 séries, 1 815 328 mesures). Maille de 0,05° contenant la
