@@ -101,6 +101,11 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
       révision CAMS de 2021-2025 constatée sur le mensuel gravé.
   - [ ] Graver la révision 2021-2025 du mensuel CAMS par versionnement
         temporel (décision ouverte).
+- [x] **Pluie journalière CHIRPS v3.0** aux 142 localités, 1991-2025
+      (migration 0055, [ADR-0036](decisions/0036-pluie-chirps-journaliere.md)) :
+      quatrième source de pluie journalière, nouvelle source `chirps` ; le
+      journalier répartit les cumuls pentadaires selon ERA5, à utiliser en
+      cumuls de pentade ou de mois.
 - [ ] Chaîne d'ingestion reproductible.
   - [x] Ingesteur NASA POWER mensuel (`scripts/ingest_nasa_power_mensuel.py`,
         paramétré par grandeur GHI/DNI/DHI, hors-ligne → seed → migration ;

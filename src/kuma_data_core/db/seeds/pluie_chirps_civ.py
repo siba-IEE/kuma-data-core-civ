@@ -45,9 +45,18 @@ ouest — la maille au sud et à l'est de la limite —, convention des interval
 semi-ouverts de GDAL (une maille contient ses bords nord et ouest). Valeur
 servie sans interpolation ni bouchage.
 
+76 des 142 localités tombent sur une limite ; elles occupent 121 mailles
+distinctes.
+
+**Cohérence** (constat du 2026-10-28) : la somme des jours redonne le CHIRPS
+v3.0 mensuel à 0,0001 mm près, sauf en février 2000 où 5 mailles diffèrent
+jusqu'à 4,1 mm (incohérence de la source, ADR-0036).
+
 Source ``chirps`` (**id 18**), méthode ``modele_satellitaire`` (estimation
 satellitaire fondue avec les pluviomètres), confiance B, période **1991-2025**.
 La borne de sanité est celle des autres pluies journalières (1000 mm/jour).
+Licence : domaine public, CC BY 4.0 (page CHIRPS3 du CHC) ; citation : DOI
+10.15780/G2JQ0P et Funk et al. (2026), *Scientific Data* 13, 718.
 """
 
 from __future__ import annotations

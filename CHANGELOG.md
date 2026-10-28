@@ -7,6 +7,16 @@ le projet suit le versionnement sémantique.
 
 ### Ajouté
 
+- Jalon 2 — **pluie journalière CHIRPS v3.0** (migration 0055, ADR-0036) :
+  quatrième source de pluie journalière, aux 142 localités, 1991-2025, nouvelle
+  source `chirps` (142 séries, 1 815 328 mesures). Maille de 0,05° contenant la
+  localité, calculée en arithmétique exacte (121 mailles). Le journalier
+  répartit les cumuls pentadaires de CHIRPS selon ERA5 (`rnl`) : la note invite
+  à l'utiliser en cumuls. La somme des jours redonne le CHIRPS mensuel à
+  0,0001 mm près, sauf en février 2000 (5 mailles, incohérence de la source).
+  CHIRPS ne confirme aucun des 25 jours NASA au-delà de 200 mm (21,2 mm au plus)
+  et n'a pas de rupture des fortes pluies (×1,24, contre ×12 pour NASA).
+
 - Jalon 2 — **rayonnement journalier CAMS** (migration 0054, ADR-0035) : GHI, DNI
   et DHI CAMS Radiation au jour UTC aux 142 localités, 2005-2025 (426 séries,
   3 265 554 mesures). 126 séries distinctes, contre 35 pour NASA POWER. Les
