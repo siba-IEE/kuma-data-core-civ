@@ -18,8 +18,10 @@ d'Ivoire, UTC+0) :
 - ``vent_10m`` : composantes ``10m_u_component_of_wind`` et
   ``10m_v_component_of_wind`` (``u10``, ``v10``, m/s) ; moyenne des 24
   **vitesses** horaires ``√(u² + v²)``, datées de 00 h à 23 h — et non la norme
-  des composantes moyennes, plus faible dès que la direction varie. C'est la
-  définition de la moyenne mensuelle ``10m_wind_speed`` gravée en 0036.
+  des composantes moyennes, plus faible dès que la direction varie. Le jeu
+  ponctuel ne sert pas la vitesse ``10m_wind_speed`` que moyenne le mensuel
+  0036 : la moyenne des jours du mois reste sous lui, de 0,001 à 0,110 m/s
+  (0,021 en moyenne, 59 640 mois-localités), écart publié (ADR-0034).
 
 Pour ces variables instantanées, le jour J réunit les heures 00 h → 23 h de J
 (convention du produit dérivé ``derived-era5-single-levels-daily-statistics``,
