@@ -89,6 +89,11 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
   - [x] Pluie journalière **GPM IMERG** (via NASA POWER) aux 142 localités,
         source de la salissure et du PR réaliste (migration 0052,
         [ADR-0033](decisions/0033-pluie-imerg-salissure.md)).
+- [x] **Température et vent journaliers ERA5** (CDS) aux 142 localités,
+      1991-2025 (migration 0053,
+      [ADR-0034](decisions/0034-meteo-era5-journaliere.md)) : deuxième source
+      journalière de la météo ; vent recalculé depuis les composantes, un peu
+      sous le mensuel ERA5 (écart publié).
 - [ ] Chaîne d'ingestion reproductible.
   - [x] Ingesteur NASA POWER mensuel (`scripts/ingest_nasa_power_mensuel.py`,
         paramétré par grandeur GHI/DNI/DHI, hors-ligne → seed → migration ;

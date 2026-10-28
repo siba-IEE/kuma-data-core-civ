@@ -7,6 +7,17 @@ le projet suit le versionnement sémantique.
 
 ### Ajouté
 
+- Jalon 2 — **température et vent journaliers ERA5** (migration 0053, ADR-0034) :
+  deuxième source journalière de la météo, aux 142 localités, 1991-2025 (284
+  séries, 3 630 656 mesures). Moyenne des 24 heures du jour UTC au nœud 0,25°
+  du mensuel ERA5 ; le vent est la moyenne des vitesses horaires recalculées
+  depuis les composantes u et v. La température redonne le mensuel ERA5 à
+  0,002 °C près ; le vent reste sous lui de 0,021 m/s en moyenne (0,110 au plus),
+  écart publié. Face à NASA POWER : ERA5 plus chaude de 0,27 °C et vent plus
+  faible de 19 %. Module commun `gravure_journaliere` pour les migrations
+  journalières ; `series_csv` admet des lacunes explicites (jour non servi par
+  la source, jamais bouché).
+
 - Jalon 3 — **pluie GPM IMERG pour la salissure** (migration 0052, ADR-0033, choix
   de l'utilisateur) : pluie journalière IMERG (via NASA POWER) aux 142
   localités, 1998-2025, nouvelle source `gpm_imerg` (142 séries, 1 452 234
