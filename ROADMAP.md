@@ -94,6 +94,13 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
       [ADR-0034](decisions/0034-meteo-era5-journaliere.md)) : deuxième source
       journalière de la météo ; vent recalculé depuis les composantes, un peu
       sous le mensuel ERA5 (écart publié).
+- [x] **Rayonnement journalier CAMS** (GHI, DNI, DHI) aux 142 localités,
+      2005-2025 (migration 0054,
+      [ADR-0035](decisions/0035-rayonnement-cams-journalier.md)) : 126 séries
+      distinctes (35 pour NASA) ; lacunes CAMS explicites, jamais bouchées ;
+      révision CAMS de 2021-2025 constatée sur le mensuel gravé.
+  - [ ] Graver la révision 2021-2025 du mensuel CAMS par versionnement
+        temporel (décision ouverte).
 - [ ] Chaîne d'ingestion reproductible.
   - [x] Ingesteur NASA POWER mensuel (`scripts/ingest_nasa_power_mensuel.py`,
         paramétré par grandeur GHI/DNI/DHI, hors-ligne → seed → migration ;

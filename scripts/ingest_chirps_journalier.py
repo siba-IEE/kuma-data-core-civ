@@ -7,7 +7,7 @@ garde la valeur de la maille de 0,05° qui contient chacune des 142 localités
 (``points_nationaux``, 122 mailles distinctes ; règle de rattachement :
 ``pluie_chirps_civ.maille_chirps``) et écrit un CSV gzip
 (``seeds/donnees/chirps_precipitation_journalier_civ142.csv.gz``, ADR-0015) que
-la migration 0054 lit hors-ligne (les migrations n'accèdent jamais au réseau).
+la migration 0055 lit hors-ligne (les migrations n'accèdent jamais au réseau).
 
 Contrat : ``kuma_data_core.db.seeds.pluie_chirps_civ`` — source ``chirps``
 (id 18), méthode ``modele_satellitaire``, confiance B, 1991-2025.

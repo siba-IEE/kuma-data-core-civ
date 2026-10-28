@@ -22,9 +22,16 @@ arrondi à 4 décimales à l'écriture du CSV. Aucune interpolation, aucune
 valeur bouchée.
 
 **Lacunes** : CAMS ne sert pas de valeur (``nan``) les jours où il manque une
-partie des images Meteosat (fiabilité voisine de 0,52). Ces jours figurent dans
-le CSV avec une valeur vide (``lacunes_admises``) et ne sont pas gravés : la
-série a un trou, jamais une valeur inventée.
+partie des images Meteosat (fiabilité voisine de 0,52) : 2005-01-11, 2005-01-12,
+2006-01-10 et 2006-01-11 partout, 2006-09-23 dans 54 localités (sondage du
+2026-10-28). Ces jours figurent dans le CSV avec une valeur vide
+(``lacunes_admises``) et ne sont pas gravés : la série a un trou, jamais une
+valeur inventée.
+
+**Révision 2021-2025** : la moyenne des jours redonne le mensuel CAMS gravé à
+0,0001 kWh/m²/jour près de 2005 à 2020, mais CAMS a révisé 2021-2025 depuis la
+gravure de son mensuel (sondage du 2026-09-30) : le journalier suit la
+révision (ADR-0035).
 
 Coordonnées demandées : celles du référentiel, au point (CAMS ne travaille pas
 sur une grille de points prédéfinis), comme pour le mensuel. Période

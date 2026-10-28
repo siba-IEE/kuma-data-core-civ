@@ -5,7 +5,7 @@ Télécharge l'irradiation **tous ciels** journalière de **CAMS Radiation**
 (Heliosat-4 + McClear, ADS Copernicus) aux 142 localités (``points_nationaux``)
 du 2005-01-01 au 2025-12-31 et écrit un CSV gzip par grandeur
 (``seeds/donnees/cams_<grandeur>_journalier_civ142.csv.gz``, ADR-0015) que la
-migration 0055 lit hors-ligne (les migrations n'accèdent jamais au réseau).
+migration 0054 lit hors-ligne (les migrations n'accèdent jamais au réseau).
 
 Contrats : ``kuma_data_core.db.seeds.rayonnement_cams_journalier_civ`` —
 source ``cams_radiation`` (id 13), méthode ``modele_satellitaire``,
@@ -82,6 +82,9 @@ NB_JOURS = (DERNIER_JOUR - PREMIER_JOUR).days + 1
 PLAGE = f"{PREMIER_JOUR.isoformat()}/{DERNIER_JOUR.isoformat()}"
 VERSION_SERVICE = "CAMS Radiation Service v4.6"
 TOLERANCE_MENSUEL = 0.001  # kWh/m²/jour : moyenne des jours - mensuel gravé
+ANNEES_REVISEES = range(2021, 2026)
+"""Années que CAMS a révisées depuis la gravure du mensuel (sondage du 2026-09-30, ADR-0018) :
+le mensuel servi le 2026-10-28 redonne la moyenne des jours, plus le mensuel gravé."""
 ESSAIS = 30
 ATTENTE_S = 60
 FILE_PLEINE = "Maximum number queued requests"
@@ -226,9 +229,17 @@ def _mensuel_grave(grandeur: str) -> dict[str, dict[tuple[int, int], float]]:
 
 
 def _comparer_au_mensuel(grandeur: str, series: list[tuple[str, float, float, Any]]) -> None:
-    """Moyenne des jours servis de chaque mois - mensuel gravé ; mois à lacune à part."""
+    """Moyenne des jours servis de chaque mois - mensuel gravé, par catégorie de mois.
+
+    Mois à lacune et années révisées (``ANNEES_REVISEES``) sont publiés à part ; les
+    autres mois doivent redonner le mensuel gravé à ``TOLERANCE_MENSUEL`` près.
+    """
     mensuel = _mensuel_grave(grandeur)
-    ecarts: dict[bool, list[tuple[float, str, int, int]]] = {False: [], True: []}
+    ecarts: dict[str, list[tuple[float, str, int, int]]] = {
+        "mois à lacune": [],
+        "années révisées 2021-2025": [],
+        "autres mois": [],
+    }
     for code, _, _, mesures in series:
         par_mois: dict[tuple[int, int], list[float | None]] = {}
         for jour, v in mesures:
@@ -238,20 +249,24 @@ def _comparer_au_mensuel(grandeur: str, series: list[tuple[str, float, float, An
         for (annee, mois), valeurs in par_mois.items():
             servis = [v for v in valeurs if v is not None]
             ecart = math.fsum(servis) / len(servis) - mensuel[code][(annee, mois)]
-            ecarts[len(servis) < len(valeurs)].append((ecart, code, annee, mois))
-    for lacunaire, liste in ecarts.items():
-        if not liste:
-            continue
+            if len(servis) < len(valeurs):
+                categorie = "mois à lacune"
+            elif annee in ANNEES_REVISEES:
+                categorie = "années révisées 2021-2025"
+            else:
+                categorie = "autres mois"
+            ecarts[categorie].append((ecart, code, annee, mois))
+    for categorie, liste in ecarts.items():
         absolus = sorted(abs(e[0]) for e in liste)
         pire = max(liste, key=lambda e: abs(e[0]))
         print(
-            f"{grandeur} : moyenne des jours servis - mensuel gravé, "
-            f"{'mois à lacune' if lacunaire else 'mois complets'} ({len(liste)}) : moyen "
-            f"{math.fsum(e[0] for e in liste) / len(liste):+.6f}, médian |écart| "
-            f"{absolus[len(absolus) // 2]:.6f}, max {abs(pire[0]):.6f} kWh/m²/jour "
-            f"({pire[1]} {pire[2]}-{pire[3]:02d})"
+            f"{grandeur} : moyenne des jours servis - mensuel gravé, {categorie} "
+            f"({len(liste)}) : moyen {math.fsum(e[0] for e in liste) / len(liste):+.6f}, "
+            f"médian |écart| {absolus[len(absolus) // 2]:.6f}, max {abs(pire[0]):.6f} "
+            f"kWh/m²/jour ({pire[1]} {pire[2]}-{pire[3]:02d}), au-delà de "
+            f"{TOLERANCE_MENSUEL} : {sum(a > TOLERANCE_MENSUEL for a in absolus)}"
         )
-    pire = max(ecarts[False], key=lambda e: abs(e[0]))
+    pire = max(ecarts["autres mois"], key=lambda e: abs(e[0]))
     if abs(pire[0]) > TOLERANCE_MENSUEL:
         raise SystemExit(f"{grandeur} : écart au mensuel au-delà de {TOLERANCE_MENSUEL} : {pire}.")
 
