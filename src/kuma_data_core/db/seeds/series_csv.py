@@ -16,6 +16,11 @@ un fichier depuis les mêmes données produit les mêmes octets, ce qui rend la
 continuité vérifiable par ``git diff``. La lecture **valide** tout : complétude
 (12 mois × années du contrat, par localité), bornes physiques, doublons,
 localités connues du référentiel.
+
+Journalier : un contrat peut admettre des **lacunes explicites**
+(``lacunes_admises``) — jours que la source ne sert pas, écrits avec une valeur
+vide. Ils comptent pour la complétude (chaque jour du contrat a sa ligne), ne
+sont jamais bouchés et ne sont pas gravés.
 """
 
 from __future__ import annotations
@@ -50,6 +55,7 @@ class ContratSerie:
     niveau_confiance: str = "B"
     granularite: str = "mensuel"
     libelle_grandeur: str | None = None  # libellé de série ; à défaut, code en capitales
+    lacunes_admises: bool = False  # journalier : jours non servis par la source, valeur vide
 
     @property
     def periode_debut(self) -> str:
@@ -170,11 +176,15 @@ def nb_jours(contrat: ContratSerie) -> int:
 def ecrire_series_journalieres(
     contrat: ContratSerie,
     lot: str,
-    series: list[tuple[str, float, float, list[tuple[date, float]]]],
+    series: list[tuple[str, float, float, list[tuple[date, float | None]]]],
 ) -> Path:
-    """Écrit ``(localite_code, lat, lon, [(date, valeur)])`` en CSV gzip déterministe."""
+    """Écrit ``(localite_code, lat, lon, [(date, valeur)])`` en CSV gzip déterministe.
+
+    Une valeur ``None`` (jour non servi par la source) s'écrit en champ vide ; elle
+    n'est admise que si le contrat le prévoit (``lacunes_admises``).
+    """
     lignes = sorted(
-        (code, lat, lon, jour.isoformat(), round(valeur, 4))
+        (code, lat, lon, jour.isoformat(), "" if valeur is None else round(valeur, 4))
         for code, lat, lon, mesures in series
         for jour, valeur in mesures
     )
@@ -198,6 +208,8 @@ def lire_series_journalieres(contrat: ContratSerie, lot: str) -> list[dict[str, 
 
     Valide en-tête, période, bornes, doublons, complétude (tous les jours civils
     du contrat, par localité) et localités du référentiel ; ``ValueError`` sinon.
+    Si le contrat admet des lacunes, un jour à valeur vide compte pour la
+    complétude, ne figure pas dans ``mesures`` et est listé dans ``lacunes``.
     """
     chemin = DOSSIER_DONNEES / contrat.nom_fichier(lot)
     debut, fin = date(contrat.annee_debut, 1, 1), date(contrat.annee_fin, 12, 31)
@@ -208,11 +220,17 @@ def lire_series_journalieres(contrat: ContratSerie, lot: str) -> list[dict[str, 
             raise ValueError(f"{chemin.name} : en-tête {entete!r} inattendu.")
         par_loc: dict[str, dict[str, Any]] = {}
         for code, lat, lon, jour_s, valeur_s in lecteur:
-            jour, valeur = date.fromisoformat(jour_s), float(valeur_s)
+            jour = date.fromisoformat(jour_s)
             if not debut <= jour <= fin:
                 raise ValueError(f"{chemin.name} : période hors contrat {code} {jour}.")
-            if not (0.0 <= valeur <= contrat.borne_max):
-                raise ValueError(f"{chemin.name} : valeur hors bornes {code} {jour}.")
+            valeur: float | None = None
+            if valeur_s == "":
+                if not contrat.lacunes_admises:
+                    raise ValueError(f"{chemin.name} : valeur absente {code} {jour}.")
+            else:
+                valeur = float(valeur_s)
+                if not (0.0 <= valeur <= contrat.borne_max):
+                    raise ValueError(f"{chemin.name} : valeur hors bornes {code} {jour}.")
             serie = par_loc.setdefault(
                 code, {"latitude": float(lat), "longitude": float(lon), "mesures": {}}
             )
@@ -226,9 +244,9 @@ def lire_series_journalieres(contrat: ContratSerie, lot: str) -> list[dict[str, 
     for code in sorted(par_loc):
         if code not in noms:
             raise ValueError(f"{chemin.name} : localité inconnue {code!r}.")
-        mesures = sorted(par_loc[code]["mesures"].items())
-        if len(mesures) != attendu:
-            raise ValueError(f"{chemin.name} : {code} a {len(mesures)} jours, {attendu} attendus.")
+        jours = sorted(par_loc[code]["mesures"].items())
+        if len(jours) != attendu:
+            raise ValueError(f"{chemin.name} : {code} a {len(jours)} jours, {attendu} attendus.")
         sortie.append(
             {
                 "code": contrat.code_serie(code),
@@ -240,7 +258,8 @@ def lire_series_journalieres(contrat: ContratSerie, lot: str) -> list[dict[str, 
                 "localite_code": code,
                 "latitude": par_loc[code]["latitude"],
                 "longitude": par_loc[code]["longitude"],
-                "mesures": mesures,
+                "mesures": [(j, v) for j, v in jours if v is not None],
+                "lacunes": [j for j, v in jours if v is None],
             }
         )
     return sortie
