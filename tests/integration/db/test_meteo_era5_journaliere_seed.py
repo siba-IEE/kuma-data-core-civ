@@ -258,7 +258,7 @@ def test_audit_par_serie(db_session: Session, grandeur: str) -> None:
 
 
 def test_series_journalieres_era5(db_session: Session) -> None:
-    """ERA5 journalier : pluie (0050), température et vent (0053), 142 localités chacune."""
+    """ERA5 journalier : pluie (0050), température et vent (0053), humidité (0057), 142 chacune."""
     rows = db_session.execute(
         text(
             """
@@ -270,6 +270,7 @@ def test_series_journalieres_era5(db_session: Session) -> None:
     ).all()
     assert {r.grandeur_code: (r.n, r.loc) for r in rows} == {
         "precipitation": (142, 142),
+        "rh2m": (142, 142),
         "t2m": (142, 142),
         "vent_10m": (142, 142),
     }

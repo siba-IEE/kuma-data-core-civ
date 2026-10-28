@@ -75,8 +75,8 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
         garde (septembre 2022, hausse des fortes pluies depuis 2017).
   - [x] **ERA5 du CDS** (2ᵉ source) : température, vent à 10 m, pluie,
         1991-2025, 142 localités (migration 0036,
-        [ADR-0021](decisions/0021-meteo-era5-cds.md)) ; humidité ERA5 non
-        gravée (biais du recalcul mensuel).
+        [ADR-0021](decisions/0021-meteo-era5-cds.md)) ; humidité ERA5 gravée
+        ensuite par la voie horaire (voir plus bas).
 - [x] **Particules fines PM2.5 et PM10** (CAMS EAC4, 2003-2025) : mensuel aux
       142 localités, journalier aux 34 localités (migration 0037,
       [ADR-0022](decisions/0022-particules-cams-eac4.md)) — entrées du proxy
@@ -94,6 +94,12 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
       [ADR-0034](decisions/0034-meteo-era5-journaliere.md)) : deuxième source
       journalière de la météo ; vent recalculé depuis les composantes, un peu
       sous le mensuel ERA5 (écart publié).
+- [x] **Humidité relative ERA5** (CDS), journalière et mensuelle, aux 142
+      localités, 1991-2025 (migration 0057,
+      [ADR-0038](decisions/0038-humidite-era5.md)) : deuxième source de
+      l'humidité, calculée heure par heure depuis la température et le point de
+      rosée, sans le biais du recalcul mensuel ; plus humide que NASA en saison
+      sèche.
 - [x] **Rayonnement journalier CAMS** (GHI, DNI, DHI) aux 142 localités,
       2005-2025 (migration 0054,
       [ADR-0035](decisions/0035-rayonnement-cams-journalier.md)) : 126 séries
