@@ -1,92 +1,56 @@
-# Kuma Data Core (Côte d'Ivoire)
+# Kuma Data Core — Côte d'Ivoire
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
-Instance dédiée à la Côte d'Ivoire du moteur Kuma Data Core. Moteur de données à
-confiance tracée : chaque valeur porte sa source, sa méthode, son niveau de
-confiance (A/B/C), ses dates de validité et son statut éditorial. Versionnement
-temporel non destructif, audit applicatif par triggers. Base PostgreSQL, API
-FastAPI. Domaine : la ressource solaire en Côte d'Ivoire.
+Ressource solaire et météo de la Côte d'Ivoire, en base PostgreSQL et servies par
+une API FastAPI. 142 localités (31 régions, 111 départements), de 1991 à 2025
+selon les sources, en mensuel et en journalier.
 
-Le code moteur est générique : le pays est un axe de classification, pas une base
-séparée. Cette instance repart d'un socle propre, sans donnée d'une autre
-instance.
+Chaque série porte sa source et sa méthode, chaque mesure son niveau de
+confiance. Tout est aujourd'hui en confiance B (satellite ou réanalyse). La
+confiance A viendra des mesures au sol.
 
-## État
+## Données
 
-Socle en place. La donnée nationale se construit par lots.
+| Grandeur | Sources |
+|---|---|
+| Rayonnement GHI, DNI, DHI | NASA POWER, CAMS Radiation ; GHI et DNI aussi SARAH-3 et ERA5 (PVGIS) |
+| Température, humidité, vent | NASA POWER, ERA5 |
+| Pluie | NASA POWER, ERA5, GPM IMERG, CHIRPS |
+| Albédo | NASA POWER |
+| Particules PM2.5, PM10 | CAMS EAC4 |
 
-- Schéma : baseline unique regroupant le schéma complet du moteur (tables, vues,
-  contraintes, index, fonctions PL/pgSQL, triggers d'audit et de validation
-  hiérarchique, extension `btree_gist`), sans donnée.
-- Référentiels génériques : unités, catalogue des grandeurs, sources amont (NASA
-  POWER, ERA5 et ERA5-Land, SARAH-3 via PVGIS, CAMS, ESMAP/WAPP, normes IEC et
-  WMO).
-- Localités : le pays `civ` (ISO 3166-1 alpha-3 : CIV) et les 14 districts (12
-  districts et 2 districts autonomes, Abidjan et Yamoussoukro), niveau
-  `region_administrative`, nomenclature ISO 3166-2:CI.
+S'y ajoutent des grandeurs calculées : écarts entre sources, fraction diffuse,
+heures équivalentes, productible, indice de clarté, humidex. Les choix et les
+limites de chaque lot sont dans [docs/decisions/](docs/decisions/).
 
-`alembic upgrade head` n'exige aucun accès réseau : aucune migration d'ingestion.
+## Lancer
 
-### À faire
-
-- Localités : 31 régions (`prefecture`) puis 108 départements, avec coordonnées,
-  population et sourçage (Wikidata, HDX/COD-AB, INS Côte d'Ivoire).
-- Ingestion de la donnée solaire (séries et mesures brutes par source), puis
-  grandeurs métier calculées et contrôle qualité.
-- Adaptation de la documentation `docs/` au contexte ivoirien.
-
-## Démarrage rapide
-
-Pré-requis : Python 3.12, [uv](https://docs.astral.sh/uv/), Docker.
+Python 3.12, [uv](https://docs.astral.sh/uv/) et Docker.
 
 ```bash
 git clone https://github.com/siba-IEE/kuma-data-core-civ.git
 cd kuma-data-core-civ
 uv sync --group dev
-cp docker/.env.example .env      # renseigner les mots de passe (champs changeme_*)
+cp docker/.env.example .env      # remplacer les mots de passe changeme_*
 docker compose -f docker/docker-compose.yml --env-file .env up -d
 uv run alembic upgrade head
 uv run uvicorn kuma_data_core.api.main:app --reload
 ```
 
-L'API écoute sur `http://127.0.0.1:8000` (`/docs` en dev).
+`alembic upgrade head` grave toutes les données à partir des CSV du dépôt, sans
+réseau. C'est long : la CI met environ 55 minutes pour ce rejeu et les tests
+d'intégration. Les scripts de `scripts/` régénèrent les CSV depuis les sources
+(clé Copernicus pour ERA5 et CAMS).
 
-## Stack
+L'API écoute sur `http://127.0.0.1:8000`, avec sa documentation sur `/docs`.
 
-Python 3.12, PostgreSQL 16, FastAPI, SQLAlchemy 2.x, Alembic, Redis, Docker
-Compose, uv, ruff, mypy, pytest. CI GitHub Actions (lint, types, tests unitaires
-et d'intégration, contrôle de cohérence Alembic).
+## Contribuer
 
-## Structure
-
-| Chemin | Rôle |
-|---|---|
-| `src/kuma_data_core/db/` | Modèles SQLAlchemy, sessions, seeds de référentiels |
-| `src/kuma_data_core/api/` | Application FastAPI (auth Bearer) |
-| `src/kuma_data_core/services/grandeurs/` | Modules de calcul par grandeur |
-| `src/kuma_data_core/ingestion/` | Ingestion des sources externes |
-| `src/kuma_data_core/editorial/` | Statuts éditoriaux, confiance A/B/C, versionnement |
-| `migrations/versions/` | Migrations Alembic (baseline, référentiels, localités) |
-| `migrations/sql/` | SQL de la baseline schéma et des référentiels |
-| `tests/` | Tests unitaires et d'intégration |
-| `docs/` | Architecture, conventions, méthodologie |
-
-## Conventions
-
-Le SQL et les identifiants métier sont en français. Toute évolution du schéma
-passe par une migration Alembic. Détails dans
-[docs/conventions/](docs/conventions/) et [CONTRIBUTING.md](CONTRIBUTING.md).
+Conventions : [docs/conventions/](docs/conventions/) et
+[CONTRIBUTING.md](CONTRIBUTING.md). Suite prévue : [ROADMAP.md](ROADMAP.md).
 
 ## Licence
 
-Distribué sous licence AGPL-3.0-or-later (voir [LICENSE](LICENSE)). Exploité comme
-service en réseau, l'AGPL impose de publier les modifications sous la même
-licence.
-
-Projet développé et soutenu par Kuma Science
-([kumascience.com](https://kumascience.com)).
-
-## Contact
-
-Siba Kalivogui, Kuma Science.
+AGPL-3.0-or-later ([LICENSE](LICENSE)). Kuma Science
+([kumascience.com](https://kumascience.com)), Siba Kalivogui.
