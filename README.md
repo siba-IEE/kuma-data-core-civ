@@ -2,9 +2,14 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
-Ressource solaire et météo de la Côte d'Ivoire, en base PostgreSQL et servies par
-une API FastAPI. 142 localités (31 régions, 111 départements), de 1991 à 2025
-selon les sources, en mensuel et en journalier.
+Ressource solaire et météo de la Côte d'Ivoire : 142 localités (31 régions,
+111 départements), de 1991 à 2025 selon les sources, en mensuel et en
+journalier. Le moteur range les séries dans PostgreSQL et les sert par une API
+FastAPI, à lancer soi-même : il n'existe pas d'instance publique de l'API.
+
+Pour utiliser les données sans installer le moteur : le
+[RDS Côte d'Ivoire](https://github.com/siba-IEE/rds-cote-divoire), en CSV sous
+licence CC BY 4.0.
 
 Chaque série porte sa source et sa méthode, chaque mesure son niveau de
 confiance. Tout est aujourd'hui en confiance B (satellite ou réanalyse). La
@@ -44,7 +49,10 @@ réseau. C'est long : la CI met environ 55 minutes pour ce rejeu et les tests
 d'intégration. Les scripts de `scripts/` régénèrent les CSV depuis les sources
 (clé Copernicus pour ERA5 et CAMS).
 
-L'API écoute sur `http://127.0.0.1:8000`, avec sa documentation sur `/docs`.
+L'API tourne alors sur votre machine, à `http://127.0.0.1:8000`, avec sa
+documentation interactive sur `/docs`. Sauf `/v1/health` et `/v1/edition`,
+chaque requête demande la clé `API_CLE_SOLAR_BRIDGE` de votre `.env`
+([démarrage rapide](docs/api/demarrage-rapide.md)).
 
 ## Contribuer
 
