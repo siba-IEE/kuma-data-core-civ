@@ -25,8 +25,16 @@ complets et dans l'ordre, aucune valeur manquante, bornes du contrat (relecture
 par ``series_csv.lire_series_journalieres``). La moyenne des jours de chaque
 mois est comparée au mensuel CAMS gravé (pilotes, lots et extension
 2021-2025) : l'écart est publié et le script échoue au-delà de
-``TOLERANCE_MENSUEL``. La fiabilité journalière (``Reliability``) est résumée,
-non gravée.
+``TOLERANCE_MENSUEL``. La fiabilité journalière (``Reliability``) est résumée ;
+le mode ``--ciel-clair`` la grave.
+
+**Ciel clair** (ADR-0039) : ``--ciel-clair`` relit les mêmes réponses (même
+cache) et écrit le ciel clair McClear (GHI, DNI, DHI), l'irradiation
+extraterrestre et la fiabilité journaliers dans
+``cams_<grandeur>_journalier_civ142.csv.gz`` (``ciel_clair_cams_civ``). La
+moyenne des jours de chaque mois est comparée au mensuel du même mode de
+``ingest_cams_radiation_mensuel.py``, à lancer d'abord : le script échoue
+au-delà de ``TOLERANCE_CIEL_CLAIR`` (ciel clair et irradiation extraterrestre).
 
 **Accès ADS (clé obligatoire)** : variable d'environnement ``ADS_API_KEY`` ; à
 défaut ``~/.cdsapirc``. Les CSV bruts restent dans le cache (``--cache``, hors
@@ -57,6 +65,14 @@ from kuma_data_core.db.seeds import (
     series_cams_dni_mensuel_civ,
     series_cams_ghi_mensuel_civ,
 )
+from kuma_data_core.db.seeds.ciel_clair_cams_civ import (
+    COLONNES_CIEL_CLAIR,
+    CONTRATS_CIEL_CLAIR_JOURNALIERS,
+    CONTRATS_CIEL_CLAIR_MENSUELS,
+    LOT_CIEL_CLAIR_CAMS,
+    SANS_CONVERSION,
+    valeur_journaliere,
+)
 from kuma_data_core.db.seeds.lots_civ import (
     CONTRATS_CAMS,
     LOT_EXTENSION,
@@ -82,6 +98,7 @@ NB_JOURS = (DERNIER_JOUR - PREMIER_JOUR).days + 1
 PLAGE = f"{PREMIER_JOUR.isoformat()}/{DERNIER_JOUR.isoformat()}"
 VERSION_SERVICE = "CAMS Radiation Service v4.6"
 TOLERANCE_MENSUEL = 0.001  # kWh/m²/jour : moyenne des jours - mensuel gravé
+TOLERANCE_CIEL_CLAIR = 0.0002  # kWh/m²/jour : moyenne des jours - mensuel, arrondis compris
 ANNEES_REVISEES = range(2021, 2026)
 """Années que CAMS a révisées depuis la gravure du mensuel (sondage du 2026-09-30, ADR-0018) :
 le mensuel servi le 2026-10-28 redonne la moyenne des jours, plus le mensuel gravé."""
@@ -125,8 +142,8 @@ def _entete(lignes: list[str], cle: str) -> str:
     raise SystemExit(f"En-tête CAMS : « {cle} » introuvable.")
 
 
-def _extraire(chemin: Path, lat: float, lon: float) -> tuple[Mesures, list[float]]:
-    """GHI, DNI, DHI journaliers (kWh/m²/jour) et fiabilités du CSV CAMS ; contrôles."""
+def _lignes_controlees(chemin: Path, lat: float, lon: float) -> tuple[list[str], list[str]]:
+    """Lignes du CSV CAMS et noms de ses colonnes, après contrôle de l'en-tête."""
     lignes = chemin.read_text(encoding="utf-8", errors="replace").splitlines()
     if not any(VERSION_SERVICE in ln for ln in lignes[:5]):
         raise SystemExit(f"{chemin.name} : service autre que « {VERSION_SERVICE} ».")
@@ -146,10 +163,11 @@ def _extraire(chemin: Path, lat: float, lon: float) -> tuple[Mesures, list[float
         for ln in lignes
         if ln.startswith("# Observation period;")
     )
-    col = {g: noms.index(c) for g, c in COLONNES_CAMS.items()}
-    i_fiab = noms.index("Reliability")
-    mesures: Mesures = {g: [] for g in GRANDEURS_CAMS}
-    fiabilites: list[float] = []
+    return lignes, noms
+
+
+def _jours(chemin: Path, lignes: list[str]) -> Iterable[tuple[date, list[str]]]:
+    """(jour, colonnes) de chaque ligne de données, jours complets et dans l'ordre."""
     attendu = PREMIER_JOUR
     for ln in lignes:
         if not ln or ln.startswith("#"):
@@ -158,19 +176,44 @@ def _extraire(chemin: Path, lat: float, lon: float) -> tuple[Mesures, list[float
         debut, fin = (datetime.fromisoformat(p) for p in cols[0].split("/"))
         if debut != datetime.combine(attendu, datetime.min.time()) or fin - debut != timedelta(1):
             raise SystemExit(f"{chemin.name} : période {cols[0]}, jour {attendu} attendu.")
-        for g, i in col.items():
-            wh = float(cols[i])
-            if math.isnan(wh):  # jour non servi (images manquantes) : lacune, jamais bouchée
-                mesures[g].append((attendu, None))
-                continue
-            if not math.isfinite(wh) or wh < 0:
-                raise SystemExit(f"{chemin.name} : {g} invalide le {attendu} ({cols[i]!r}).")
-            mesures[g].append((attendu, kwh_par_jour(wh)))
-        fiabilites.append(float(cols[i_fiab]))
+        yield attendu, cols
         attendu += timedelta(1)
     if attendu != DERNIER_JOUR + timedelta(1):
         raise SystemExit(f"{chemin.name} : {(attendu - PREMIER_JOUR).days} jours, {NB_JOURS}.")
+
+
+def _extraire(chemin: Path, lat: float, lon: float) -> tuple[Mesures, list[float]]:
+    """GHI, DNI, DHI journaliers (kWh/m²/jour) et fiabilités du CSV CAMS ; contrôles."""
+    lignes, noms = _lignes_controlees(chemin, lat, lon)
+    col = {g: noms.index(c) for g, c in COLONNES_CAMS.items()}
+    i_fiab = noms.index("Reliability")
+    mesures: Mesures = {g: [] for g in GRANDEURS_CAMS}
+    fiabilites: list[float] = []
+    for jour, cols in _jours(chemin, lignes):
+        for g, i in col.items():
+            wh = float(cols[i])
+            if math.isnan(wh):  # jour non servi (images manquantes) : lacune, jamais bouchée
+                mesures[g].append((jour, None))
+                continue
+            if not math.isfinite(wh) or wh < 0:
+                raise SystemExit(f"{chemin.name} : {g} invalide le {jour} ({cols[i]!r}).")
+            mesures[g].append((jour, kwh_par_jour(wh)))
+        fiabilites.append(float(cols[i_fiab]))
     return mesures, fiabilites
+
+
+def _extraire_ciel_clair(chemin: Path, lat: float, lon: float) -> Mesures:
+    """Ciel clair, irradiation extraterrestre et fiabilité journaliers : aucune lacune."""
+    lignes, noms = _lignes_controlees(chemin, lat, lon)
+    col = {g: noms.index(c) for g, c in COLONNES_CIEL_CLAIR.items()}
+    mesures: Mesures = {g: [] for g in COLONNES_CIEL_CLAIR}
+    for jour, cols in _jours(chemin, lignes):
+        for g, i in col.items():
+            servie = float(cols[i])
+            if not math.isfinite(servie) or servie < 0:
+                raise SystemExit(f"{chemin.name} : {g} invalide le {jour} ({cols[i]!r}).")
+            mesures[g].append((jour, valeur_journaliere(g, servie)))
+    return mesures
 
 
 def _telecharger_en_cache(code: str, lat: float, lon: float, cache: Path) -> Path:
@@ -306,9 +349,71 @@ def main(cache: Path, paralleles: int) -> None:
         _comparer_au_mensuel(grandeur, series)
 
 
+def _comparer_ciel_clair_au_mensuel(
+    grandeur: str, series: list[tuple[str, float, float, Any]]
+) -> None:
+    """Moyenne des jours de chaque mois (valeurs du CSV) - mensuel du mode ``--ciel-clair``."""
+    mensuel = {
+        s["localite_code"]: {(a, m): v for a, m, v in s["mesures"]}
+        for s in lire_series(CONTRATS_CIEL_CLAIR_MENSUELS[grandeur], LOT_CIEL_CLAIR_CAMS)
+    }
+    ecarts: list[tuple[float, str, int, int]] = []
+    for code, _, _, mesures in series:
+        par_mois: dict[tuple[int, int], list[float]] = {}
+        for jour, v in mesures:
+            par_mois.setdefault((jour.year, jour.month), []).append(round(v, 4))
+        for (annee, mois), valeurs in par_mois.items():
+            ecart = math.fsum(valeurs) / len(valeurs) - mensuel[code][(annee, mois)]
+            ecarts.append((ecart, code, annee, mois))
+    pire = max(ecarts, key=lambda e: abs(e[0]))
+    print(
+        f"{grandeur} : moyenne des jours - mensuel ({len(ecarts)} mois) : moyen "
+        f"{math.fsum(e[0] for e in ecarts) / len(ecarts):+.6f}, max {abs(pire[0]):.6f} "
+        f"({pire[1]} {pire[2]}-{pire[3]:02d})"
+    )
+    if grandeur not in SANS_CONVERSION and abs(pire[0]) > TOLERANCE_CIEL_CLAIR:
+        raise SystemExit(
+            f"{grandeur} : écart au mensuel au-delà de {TOLERANCE_CIEL_CLAIR} : {pire}."
+        )
+
+
+def main_ciel_clair(cache: Path, paralleles: int) -> None:
+    """Ciel clair, irradiation extraterrestre et fiabilité journaliers 2005-2025 (ADR-0039)."""
+    cache.mkdir(parents=True, exist_ok=True)
+    points = points_nationaux()
+
+    def traiter(point: tuple[str, str, float, float]) -> Mesures:
+        code, _, lat, lon = point
+        return _extraire_ciel_clair(_telecharger_en_cache(code, lat, lon, cache), lat, lon)
+
+    with ThreadPoolExecutor(max_workers=paralleles) as pool:
+        resultats = list(pool.map(traiter, points))
+    for grandeur, contrat in CONTRATS_CIEL_CLAIR_JOURNALIERS.items():
+        series = [
+            (code, lat, lon, mesures[grandeur])
+            for (code, _, lat, lon), mesures in zip(points, resultats, strict=True)
+        ]
+        cible = ecrire_series_journalieres(contrat, LOT_CIEL_CLAIR_CAMS, series)
+        toutes = [round(v, 4) for _, _, _, m in series for _, v in m if v is not None]
+        print(
+            f"{grandeur}: {len(series)} séries × {NB_JOURS} jours -> {cible.name} "
+            f"(min {min(toutes)}, moyenne {math.fsum(toutes) / len(toutes):.4f}, "
+            f"max {max(toutes)})"
+        )
+        _comparer_ciel_clair_au_mensuel(grandeur, series)
+
+
 if __name__ == "__main__":
     parseur = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parseur.add_argument("--cache", type=Path, default=Path(".cache/cams_jour"))
     parseur.add_argument("--paralleles", type=int, default=4, help="requêtes ADS simultanées")
+    parseur.add_argument(
+        "--ciel-clair",
+        action="store_true",
+        help="ciel clair, irradiation extraterrestre et fiabilité (ADR-0039)",
+    )
     args = parseur.parse_args()
-    main(args.cache, args.paralleles)
+    if args.ciel_clair:
+        main_ciel_clair(args.cache, args.paralleles)
+    else:
+        main(args.cache, args.paralleles)

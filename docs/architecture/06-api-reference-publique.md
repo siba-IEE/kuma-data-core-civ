@@ -1103,6 +1103,9 @@ effectivement présentes se lisent via `/v1/series`.
 | `vent_2m`, `vent_10m` | Vent à 2 m, à 10 m | m/s | NASA POWER (MERRA-2) ; ERA5 (CDS) pour `vent_10m` | `WS2M`, `WS10M` |
 | `precipitation` | Précipitation | mm/jour | NASA POWER (MERRA-2 corrigé), ERA5 (CDS), GPM IMERG (via NASA POWER, source des épisodes de lessivage), CHIRPS v3.0 (journalier) | `PRECTOTCORR`, `IMERG_PRECTOT` |
 | `albedo_surface` | Albédo de surface | sans dimension | NASA POWER (CERES) | `ALLSKY_SRF_ALB` |
+| `ghi_ciel_clair`, `dni_ciel_clair`, `dhi_ciel_clair` | Irradiation par ciel clair (McClear) | kWh/m²/jour | CAMS Radiation | — |
+| `irradiation_extraterrestre` | Irradiation extraterrestre horizontale | kWh/m²/jour | CAMS Radiation | — |
+| `fiabilite_satellite` | Fiabilité des observations satellitaires | sans dimension | CAMS Radiation | — |
 | `pm2_5`, `pm10` | Particules fines / grossières | µg/m³ | CAMS EAC4 (ADS Copernicus) | `particulate_matter_2.5um`, `particulate_matter_10um` |
 
 Granularités de l'instance Côte d'Ivoire (révision 0044) : tout est

@@ -29,8 +29,10 @@ def test_unites_et_grandeurs_peuplees(db_session: Session) -> None:
     # ecart_relatif_ghi_sarah3_nasa (0011), ecart_relatif_ghi_era5_nasa (0013),
     # ecart_relatif_ghi_cams_nasa (0015), ecart_relatif_dni_cams_nasa (0016),
     # ecart_relatif_dni_sarah3_nasa (0019), ecart_relatif_dni_era5_nasa (0020)
-    # et ecart_relatif_dhi_cams_nasa (0023).
-    assert grandeurs == 41
+    # et ecart_relatif_dhi_cams_nasa (0023) ; 5 grandeurs brutes CAMS (0058) :
+    # ghi_ciel_clair, dni_ciel_clair, dhi_ciel_clair, irradiation_extraterrestre,
+    # fiabilite_satellite.
+    assert grandeurs == 46
 
 
 def test_source_guineenne_retiree(db_session: Session) -> None:

@@ -25,7 +25,7 @@ données brutes en confiance B : la confiance A viendra à la fin.
      UTC, qui est le jour civil local ;
    - conversion ÷ 1000 → kWh/m²/jour, sans interpolation ni bouchage ;
    - la fiabilité journalière (`Reliability`) est résumée par l'ingesteur, mais
-     n'est pas gravée.
+     n'est pas gravée (elle l'est depuis, avec le ciel clair : ADR-0039).
 3. **Lacunes explicites** : un jour que CAMS ne sert pas (`nan`) figure dans le
    CSV avec une valeur vide, grâce au nouvel attribut `lacunes_admises` des
    contrats journaliers. Ce jour compte pour la complétude, mais il n'est ni
