@@ -15,7 +15,7 @@ Chaque ligne couvre un jour UTC (``AAAA-MM-JJT00:00/AAAA-MM-J+1T00:00``), jour
 civil local en Côte d'Ivoire (UTC+0). Colonnes **repérées par nom** :
 ``GHI``, ``BNI`` (= DNI) et ``DHI``, en **Wh/m² intégrés au jour** ; la colonne
 ``Reliability`` donne la part des pas de 15 min fiables dans le jour (0 à 1),
-non gravée.
+gravée à part avec le ciel clair (``ciel_clair_cams_civ``, ADR-0039).
 
 **Conversion** vers ``kwh_par_m2_jour`` : Wh/m²/jour ÷ 1000 (``kwh_par_jour``),
 arrondi à 4 décimales à l'écriture du CSV. Aucune interpolation, aucune

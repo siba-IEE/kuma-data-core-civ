@@ -199,8 +199,8 @@ def test_notes_publiques(db_session: Session) -> None:
     """Mise en garde mensuelle de la révision gravée, phrase journalière, séries dérivées."""
     for grandeur in _GRANDEURS:
         notes = db_session.execute(
-            text("SELECT code, note_publique FROM series_metadonnees WHERE code LIKE :p"),
-            {"p": f"cams_{grandeur}_%"},
+            text("SELECT code, note_publique FROM series_metadonnees WHERE code ~ :p"),
+            {"p": f"^cams_{grandeur}_(mensuel|journalier)_"},
         ).all()
         mensuelles = [n for c, n in notes if "_mensuel_" in c]
         journalieres = [n for c, n in notes if "_journalier_" in c]

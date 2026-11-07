@@ -18,6 +18,7 @@ confiance A viendra des mesures au sol.
 | Température, humidité, vent | NASA POWER, ERA5 |
 | Pluie | NASA POWER, ERA5, GPM IMERG, CHIRPS |
 | Albédo | NASA POWER |
+| Ciel clair, irradiation extraterrestre, fiabilité satellite | CAMS Radiation |
 | Particules PM2.5, PM10 | CAMS EAC4 |
 
 S'y ajoutent des grandeurs calculées : écarts entre sources, fraction diffuse,

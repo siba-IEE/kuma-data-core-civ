@@ -7,6 +7,18 @@ le projet suit le versionnement sémantique.
 
 ### Ajouté
 
+- Jalon 2 — **ciel clair, irradiation extraterrestre et fiabilité CAMS**
+  (migration 0058, ADR-0039) : cinq grandeurs brutes nouvelles
+  (`ghi_ciel_clair`, `dni_ciel_clair`, `dhi_ciel_clair`,
+  `irradiation_extraterrestre`, `fiabilite_satellite`), mensuelles et
+  journalières, aux 142 localités, 2005-2025 (1 420 séries, 5 624 620 mesures).
+  Elles viennent des réponses CAMS déjà en cache (mode `--ciel-clair` des deux
+  ingesteurs CAMS), sans lacune. Le GHI tous ciels vaut 80,9 % du ciel clair
+  (95 % en janvier, 64 % en août ; de 70,6 % à Abidjan à 87,9 % à Tengréla),
+  le DNI 61,6 %. Rapporté à l'irradiation extraterrestre, le DNI par ciel clair
+  est au plus bas en février-mars (aérosols de l'Harmattan). L'irradiation
+  extraterrestre de CAMS redonne celle du calcul de `kt` à 0,44 % près.
+
 - Jalon 2 — **humidité relative ERA5** (migration 0057, ADR-0038) : deuxième
   source de l'humidité relative à 2 m, journalière et mensuelle, aux 142
   localités, 1991-2025 (284 séries, 1 874 968 mesures). ERA5 ne sert pas

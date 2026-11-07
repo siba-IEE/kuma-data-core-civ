@@ -49,6 +49,12 @@ Python. Requêtes ADS en parallèle ; les CSV bruts sont mis en cache
 ``cams_<grandeur>_mensuel_revision_2026_10_28.csv.gz`` (lot ``LOT_REVISION_CAMS``),
 sans toucher au CSV d'extension, que la migration 0030 relit à chaque rejeu.
 L'écart entre valeurs gravées et révisées est publié.
+
+**Ciel clair** (ADR-0039) : ``--ciel-clair`` relit les mêmes réponses (mêmes
+requêtes 2005-2025, même cache que ``--revision``) et écrit le ciel clair
+McClear (GHI, DNI, DHI), l'irradiation extraterrestre et la fiabilité
+mensuels dans ``cams_<grandeur>_mensuel_civ142.csv.gz``
+(``ciel_clair_cams_civ``), colonnes repérées par nom.
 """
 
 from __future__ import annotations
@@ -69,6 +75,12 @@ from kuma_data_core.db.seeds import (
     series_cams_dhi_mensuel_civ,
     series_cams_dni_mensuel_civ,
     series_cams_ghi_mensuel_civ,
+)
+from kuma_data_core.db.seeds.ciel_clair_cams_civ import (
+    COLONNES_CIEL_CLAIR,
+    CONTRATS_CIEL_CLAIR_MENSUELS,
+    LOT_CIEL_CLAIR_CAMS,
+    valeur_mensuelle,
 )
 from kuma_data_core.db.seeds.localites_civ_seed_data import LOCALITES_SEED
 from kuma_data_core.db.seeds.lots_civ import (
@@ -291,6 +303,62 @@ def _telecharger_et_ecrire(
         print(f"{grandeur}: {len(series)} séries -> {cible.name}")
 
 
+def _extraire_ciel_clair(chemin: Path) -> dict[str, list[tuple[int, int, float]]]:
+    """Ciel clair, irradiation extraterrestre et fiabilité mensuels, colonnes par nom."""
+    lignes = chemin.read_text(encoding="utf-8", errors="replace").splitlines()
+    for cle, attendu in (
+        ("# Summarization (integration) period:", "0 year 1 month 0 day 0 h 0 min 0 s"),
+        ("# Time reference:", "Universal time (UT)"),
+    ):
+        lue = next((ln.split(":", 1)[1].strip() for ln in lignes if ln.startswith(cle)), None)
+        if lue != attendu:
+            raise SystemExit(f"{chemin.name} : {cle} {lue!r}, {attendu!r} attendu.")
+    noms = next(
+        [c.strip() for c in ln.lstrip("#").split(";")]
+        for ln in lignes
+        if ln.startswith("# Observation period;")
+    )
+    col = {g: noms.index(c) for g, c in COLONNES_CIEL_CLAIR.items()}
+    out: dict[str, list[tuple[int, int, float]]] = {g: [] for g in COLONNES_CIEL_CLAIR}
+    for ln in lignes:
+        if not ln or ln.startswith("#"):
+            continue
+        cols = ln.split(";")
+        annee, mois = int(cols[0][:4]), int(cols[0][5:7])
+        for grandeur, i in col.items():
+            servie = float(cols[i])
+            if not math.isfinite(servie) or servie < 0:
+                raise SystemExit(f"{chemin.name} : {grandeur} invalide en {annee}-{mois:02d}.")
+            out[grandeur].append((annee, mois, valeur_mensuelle(grandeur, servie, annee, mois)))
+    return out
+
+
+def main_ciel_clair(cache: Path, paralleles: int) -> None:
+    """Ciel clair, irradiation extraterrestre et fiabilité mensuels 2005-2025 (ADR-0039)."""
+    global ANNEE_DEBUT, ANNEE_FIN
+    ANNEE_DEBUT, ANNEE_FIN = 2005, 2025
+    cache.mkdir(parents=True, exist_ok=True)
+
+    def traiter(point: tuple[str, str, float, float]) -> tuple[str, float, float, Any]:
+        code, _, lat, lon = point
+        return code, lat, lon, _extraire_ciel_clair(_telecharger_en_cache(lat, lon, cache))
+
+    with ThreadPoolExecutor(max_workers=paralleles) as pool:
+        resultats = list(pool.map(traiter, points_nationaux()))
+    attendu = (ANNEE_FIN - ANNEE_DEBUT + 1) * 12
+    for grandeur, contrat in CONTRATS_CIEL_CLAIR_MENSUELS.items():
+        series = [(code, lat, lon, m[grandeur]) for code, lat, lon, m in resultats]
+        if any(len(m) != attendu for _, _, _, m in series):
+            raise SystemExit(f"{grandeur} : série incomplète ({attendu} mois attendus).")
+        cible = ecrire_series(contrat, LOT_CIEL_CLAIR_CAMS, series)
+        toutes = [round(v, 4) for _, _, _, m in series for _, _, v in m]
+        print(
+            f"{grandeur}: {len(series)} séries × {attendu} mois -> {cible.name} "
+            f"(min {min(toutes)}, moyenne {math.fsum(toutes) / len(toutes):.4f}, "
+            f"max {max(toutes)})"
+        )
+
+
 def _graves_2005_2020(grandeur: str) -> dict[str, dict[tuple[int, int], float]]:
     """Mensuel CAMS 2005-2020 gravé : pilotes (modules) et lots régions, départements."""
     seed = {
@@ -427,8 +495,15 @@ if __name__ == "__main__":
     parseur.add_argument(
         "--revision", action="store_true", help="valeurs 2021-2025 révisées (ADR-0037)"
     )
+    parseur.add_argument(
+        "--ciel-clair",
+        action="store_true",
+        help="ciel clair, irradiation extraterrestre et fiabilité (ADR-0039)",
+    )
     args = parseur.parse_args()
-    if args.revision:
+    if args.ciel_clair:
+        main_ciel_clair(args.cache, args.paralleles)
+    elif args.revision:
         main_revision(args.cache, args.paralleles)
     elif args.extension:
         main_extension(args.cache, args.paralleles)

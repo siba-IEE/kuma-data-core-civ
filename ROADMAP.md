@@ -110,6 +110,11 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
         [ADR-0037](decisions/0037-revision-cams-mensuel.md)) : valeurs
         remplacées closes, jamais supprimées ; grandeurs dérivées CAMS
         recalculées et versionnées de même.
+  - [x] **Ciel clair, irradiation extraterrestre et fiabilité CAMS**, mensuels
+        et journaliers, 2005-2025 (migration 0058,
+        [ADR-0039](decisions/0039-ciel-clair-cams.md)) : cinq grandeurs brutes
+        tirées des mêmes réponses CAMS ; les nuages arrêtent 19 % du GHI et
+        38 % du DNI, et les aérosols de l'Harmattan creusent le ciel clair.
 - [x] **Pluie journalière CHIRPS v3.0** aux 142 localités, 1991-2025
       (migration 0055, [ADR-0036](decisions/0036-pluie-chirps-journaliere.md)) :
       quatrième source de pluie journalière, nouvelle source `chirps` ; le
