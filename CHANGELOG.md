@@ -7,6 +7,14 @@ le projet suit le versionnement sémantique.
 
 ### Ajouté
 
+- **Exporteur du RDS Côte d'Ivoire** (`scripts/exporter_rds.py`) : écrit les
+  séries brutes courantes des 142 localités dans le dépôt `rds-cote-divoire`,
+  un dossier par source, le mensuel en un fichier et le journalier par
+  décennie, avec `localites.csv` et `MANIFEST.csv` (lignes, localités,
+  SHA-256). L'export s'arrête si les familles brutes de la base ne sont pas
+  exactement celles attendues, s'il manque une série ou si une clé porte deux
+  valeurs. Base à 0058 : 28 fichiers, 37 626 146 valeurs.
+
 - Jalon 2 — **ciel clair, irradiation extraterrestre et fiabilité CAMS**
   (migration 0058, ADR-0039) : cinq grandeurs brutes nouvelles
   (`ghi_ciel_clair`, `dni_ciel_clair`, `dhi_ciel_clair`,

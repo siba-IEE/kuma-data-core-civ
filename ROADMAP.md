@@ -198,6 +198,14 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
 - [ ] Intégrer des stations sol ouvertes en Côte d'Ivoire comme première ancre de
       confiance A, et le calage terrain associé.
 
+## Publication
+
+- [x] Exporteur du RDS Côte d'Ivoire (`scripts/exporter_rds.py`) : séries
+      brutes courantes des 142 localités, en CSV par source (mensuel en un
+      fichier, journalier par décennie), avec manifeste SHA-256.
+- [ ] Publier le RDS Côte d'Ivoire 1.0.0 (dépôt `rds-cote-divoire`, DOI
+      Zenodo).
+
 ## Documentation
 
 - [ ] Adapter `docs/` au contexte ivoirien.
