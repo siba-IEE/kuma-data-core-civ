@@ -15,6 +15,16 @@ le projet suit le versionnement sémantique.
   exactement celles attendues, s'il manque une série ou si une clé porte deux
   valeurs. Base à 0058 : 28 fichiers, 37 626 146 valeurs.
 
+- Jalon 2 — **agroclimat AgERA5** (migration 0059, ADR-0040) : nouvelle source
+  `agera5` (Copernicus C3S, id 19) et quatre grandeurs nouvelles,
+  journalières et mensuelles, aux 142 localités, 1991-2025 (1 136 séries,
+  7 499 872 mesures) : évapotranspiration de référence FAO-56 (`et0`),
+  températures minimale et maximale (`t2m_min`, `t2m_max`) et déficit de
+  pression de vapeur à Tmax (`vpd_tmax`). Maille de 0,1° qui contient la
+  localité, jour civil. ET0 moyenne de 4,02 mm/jour, de 3,38 à San-Pédro à
+  5,29 à Doropo ; Tmax de 33,53 °C en février, 27,67 en août. La température
+  moyenne ERA5 tombe entre Tmin et Tmax 99,82 % des jours.
+
 - Jalon 2 — **ciel clair, irradiation extraterrestre et fiabilité CAMS**
   (migration 0058, ADR-0039) : cinq grandeurs brutes nouvelles
   (`ghi_ciel_clair`, `dni_ciel_clair`, `dhi_ciel_clair`,

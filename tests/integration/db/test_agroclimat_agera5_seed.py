@@ -215,14 +215,72 @@ def test_tmin_sous_tmax(db_session: Session) -> None:
     assert (r.n, r.inverses) == (142 * _NB_JOURS, 0)
 
 
-# Chiffres cités par les notes publiques : moyenne des 142 localités, localités extrêmes,
-# mois le plus haut et le plus bas (moyenne de tous les jours-localités du mois).
-_CITES: dict[str, tuple[str, tuple[str, str], tuple[str, str], tuple[int, str], tuple[int, str]]] = {
-    "et0": ("A_REMPLIR", ("", ""), ("", ""), (0, ""), (0, "")),
-    "t2m_min": ("A_REMPLIR", ("", ""), ("", ""), (0, ""), (0, "")),
-    "t2m_max": ("A_REMPLIR", ("", ""), ("", ""), (0, ""), (0, "")),
-    "vpd_tmax": ("A_REMPLIR", ("", ""), ("", ""), (0, ""), (0, "")),
+# Chiffres cités par les notes publiques, journalier 1991-2025 : moyenne des 142 localités,
+# localités extrêmes (Sassandra et la région du Gbôklé partagent leur maille), mois le plus bas
+# et le plus haut (moyenne de tous les jours-localités du mois).
+_Extreme = tuple[set[str], str]
+_CITES: dict[str, tuple[str, _Extreme, _Extreme, tuple[int, str], tuple[int, str]]] = {
+    "et0": (
+        "4.02",
+        ({"civ_dep_san_pedro"}, "3.38"),
+        ({"civ_dep_doropo"}, "5.29"),
+        (8, "3.26"),
+        (2, "4.85"),
+    ),
+    "t2m_min": (
+        "22.36",
+        ({"civ_dep_biankouma"}, "19.93"),
+        ({"civ_dep_jacqueville"}, "25.39"),
+        (12, "21.28"),
+        (4, "23.63"),
+    ),
+    "t2m_max": (
+        "30.67",
+        ({"civ_dep_sassandra", "civ_gbokle"}, "26.71"),
+        ({"civ_dep_m_bengue"}, "33.17"),
+        (8, "27.67"),
+        (2, "33.53"),
+    ),
+    "vpd_tmax": (
+        "1.99",
+        ({"civ_dep_jacqueville"}, "0.64"),
+        ({"civ_dep_tengrela"}, "3.15"),
+        (8, "1.25"),
+        (2, "3.01"),
+    ),
 }
+
+
+_MOIS = {2: "février", 4: "avril", 8: "août", 12: "décembre"}
+
+
+@pytest.mark.parametrize("grandeur", _GRANDEURS)
+def test_notes_citent_les_chiffres(db_session: Session, grandeur: str) -> None:
+    """Les notes journalière et mensuelle citent les chiffres vérifiés plus bas."""
+    moyenne, (_, bas), (_, haut), (m_bas, v_bas), (m_haut, v_haut) = _CITES[grandeur]
+    notes = (
+        db_session.execute(
+            text("SELECT DISTINCT note_publique FROM series_metadonnees WHERE code = ANY(:c)"),
+            {"c": _codes(grandeur, "journalier") + _codes(grandeur, "mensuel")},
+        )
+        .scalars()
+        .all()
+    )
+    assert len(notes) == 2
+    fragments = [
+        f"{moyenne.replace('.', ',')} ",
+        f"de {bas.replace('.', ',')} à ",
+        f"à {haut.replace('.', ',')} à ",
+        f"{v_bas.replace('.', ',')} en {_MOIS[m_bas]}",
+        f"{v_haut.replace('.', ',')} en {_MOIS[m_haut]}",
+    ]
+    for note in notes:
+        for fragment in fragments:
+            assert fragment in note, fragment
+        if grandeur in ("t2m_min", "t2m_max"):
+            assert "99,82 %" in note and "0,13 °C" in note and "(0,41 " in note
+        if grandeur == "et0":
+            assert "4,19 mm/jour" in note and "corrélée à 0,75" in note
 
 
 @pytest.mark.parametrize("grandeur", _GRANDEURS)
@@ -242,10 +300,12 @@ def test_moyennes_et_extremes_cites(db_session: Session, grandeur: str) -> None:
     ).all()
     assert len(par_localite) == 142 and {r.n for r in par_localite} == {_NB_JOURS}
     assert round(sum(r.v for r in par_localite) / 142, 2) == Decimal(moyenne)
-    bas = min(par_localite, key=lambda r: r.v)
-    haut = max(par_localite, key=lambda r: r.v)
-    assert (bas.code, round(bas.v, 2)) == (plus_basse[0], Decimal(plus_basse[1]))
-    assert (haut.code, round(haut.v, 2)) == (plus_haute[0], Decimal(plus_haute[1]))
+    for extreme, (codes, valeur) in (
+        (min(r.v for r in par_localite), plus_basse),
+        (max(r.v for r in par_localite), plus_haute),
+    ):
+        assert {r.code for r in par_localite if r.v == extreme} == codes
+        assert round(extreme, 2) == Decimal(valeur)
     par_mois = db_session.execute(
         text(
             """
@@ -281,7 +341,8 @@ def test_temperature_moyenne_era5_entre_tmin_et_tmax(db_session: Session) -> Non
             )
             SELECT COUNT(*) AS n,
                    AVG((era5 BETWEEN tmin AND tmax)::int) AS dedans,
-                   AVG((tmin + tmax) / 2 - era5) AS biais
+                   AVG((tmin + tmax) / 2 - era5) AS biais,
+                   AVG(ABS((tmin + tmax) / 2 - era5)) AS absolu
             FROM p
             """
         ),
@@ -292,9 +353,10 @@ def test_temperature_moyenne_era5_entre_tmin_et_tmax(db_session: Session) -> Non
         },
     ).one()
     assert r.n == 142 * _NB_JOURS
-    assert (round(100 * r.dedans, 2), round(r.biais, 2)) == (
-        Decimal("A_REMPLIR"),
-        Decimal("A_REMPLIR"),
+    assert (round(100 * r.dedans, 2), round(r.biais, 2), round(r.absolu, 2)) == (
+        Decimal("99.82"),
+        Decimal("0.13"),
+        Decimal("0.41"),
     )
 
 
@@ -334,11 +396,7 @@ def test_hargreaves_cite(db_session: Session) -> None:
         {"c": [c for g in ("et0", "t2m_min", "t2m_max") for c in _codes(g, "journalier")]},
     ).one()
     assert r.n == 142 * _NB_JOURS
-    assert (round(r.et0, 2), round(r.hg, 2), round(r.r, 2)) == (
-        "A_REMPLIR",
-        "A_REMPLIR",
-        "A_REMPLIR",
-    )
+    assert (round(r.et0, 2), round(r.hg, 2), round(r.r, 2)) == (4.02, 4.19, 0.75)
 
 
 def test_audit(db_session: Session) -> None:

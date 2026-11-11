@@ -115,6 +115,11 @@ l'amorçage et la montée en charge de la donnée ivoirienne.
         [ADR-0039](decisions/0039-ciel-clair-cams.md)) : cinq grandeurs brutes
         tirées des mêmes réponses CAMS ; les nuages arrêtent 19 % du GHI et
         38 % du DNI, et les aérosols de l'Harmattan creusent le ciel clair.
+- [x] **Agroclimat AgERA5** (ET0, Tmin, Tmax, déficit de pression de vapeur
+      à Tmax), journalier et mensuel, aux 142 localités, 1991-2025 (migration
+      0059, [ADR-0040](decisions/0040-agroclimat-agera5.md)) : nouvelle
+      source `agera5`, maille de 0,1° ; les besoins en eau des cultures et les
+      degrés-jours se calculent au point.
 - [x] **Pluie journalière CHIRPS v3.0** aux 142 localités, 1991-2025
       (migration 0055, [ADR-0036](decisions/0036-pluie-chirps-journaliere.md)) :
       quatrième source de pluie journalière, nouvelle source `chirps` ; le

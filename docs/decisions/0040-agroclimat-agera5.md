@@ -61,7 +61,34 @@ Climate Data Store, avec la clé Copernicus déjà utilisée pour ERA5.
 
 ## Résultats
 
-RESULTATS
+Sur les jours de 1991-2025, aux 142 localités :
+
+| Grandeur | Moyenne | Plus bas | Plus haut | Mois extrêmes |
+|---|---|---|---|---|
+| ET0 | 4,02 mm/jour | 3,38 (San-Pédro) | 5,29 (Doropo) | 4,85 en février, 3,26 en août |
+| Tmin | 22,36 °C | 19,93 (Biankouma) | 25,39 (Jacqueville) | 23,63 en avril, 21,28 en décembre |
+| Tmax | 30,67 °C | 26,71 (Sassandra) | 33,17 (M’Bengué) | 33,53 en février, 27,67 en août |
+| Déficit à Tmax | 1,99 kPa | 0,64 (Jacqueville) | 3,15 (Tengréla) | 3,01 en février, 1,25 en août |
+
+Contrôles et recoupements (`scripts/ingest_agera5.py`) :
+- Tmin ≤ Tmax chaque jour-localité ; le déficit atteint au plus 97,9 % de la
+  pression de vapeur saturante à Tmax.
+- **Jour** : face aux extrêmes des 24 heures UTC d'ERA5 au nœud de 0,25° (cache
+  horaire de 0057, 110 nœuds), Tmin et Tmax sont corrélées à 0,955 et 0,964 le
+  même jour, à 0,78-0,82 avec un jour de décalage. Le jour d'AgERA5 est bien le
+  jour civil.
+- AgERA5 est plus frais que ces extrêmes horaires : −0,23 °C sur Tmin,
+  −0,63 °C sur Tmax en moyenne. La maille et la correction d'altitude
+  diffèrent ; l'écart n'est pas corrigé.
+- La température moyenne journalière ERA5 (0053) tombe entre Tmin et Tmax
+  99,82 % des jours-localités ; la demi-somme de Tmin et Tmax la dépasse de
+  0,13 °C en moyenne (0,41 en valeur absolue).
+- La formule de Hargreaves (FAO-56, équation 52), sur Tmin, Tmax et
+  l'irradiation extraterrestre, donne 4,19 mm/jour pour une ET0 de 4,02,
+  corrélée à 0,75 au jour le jour. Elle ignore l'humidité et le vent.
+
+Les notes publiques citent les chiffres recalculables depuis la base ; les
+tests d'intégration les vérifient.
 
 ## Conséquences
 

@@ -36,7 +36,14 @@ rattachée à la maille au sud et à l'est, comme pour CHIRPS) : 119 mailles pou
 Valeurs lues hors-ligne dans les CSV gzip committés
 (``seeds/donnees/agera5_<grandeur>_<journalier|mensuel>_civ142.csv.gz``,
 générés par ``scripts/ingest_agera5.py``) et validées par ``series_csv``.
-Recoupements et constats publiés dans ``NOTES`` (ADR-0040).
+
+Recoupements (``scripts/ingest_agera5.py``) : Tmin ≤ Tmax chaque jour, déficit
+au plus 97,9 % de la pression de vapeur saturante à Tmax. Face aux extrêmes des
+24 heures UTC d'ERA5 (cache horaire de 0057, 110 nœuds), Tmin et Tmax sont
+corrélées à 0,955 et 0,964 le même jour, à 0,78-0,82 avec un jour de décalage :
+le jour d'AgERA5 est le jour civil. La moyenne journalière ERA5 (0053) tombe
+entre Tmin et Tmax 99,82 % des jours ; Hargreaves donne 4,19 mm/jour pour une
+ET0 de 4,02. Chiffres publiés dans ``NOTES``.
 
 Garde-fous : id 19 et code ``agera5`` libres, grandeurs absentes, unités, 142
 localités, aucune série préexistante, couverture exacte des CSV, comptes de
@@ -178,11 +185,30 @@ _FIN: str = (
     "Réanalyse, jamais une mesure au sol. Confiance B (ADR-0040). Attribution : contient des "
     "informations modifiées du Copernicus Climate Change Service (2026)."
 )
+_ERA5: str = (
+    "La température moyenne journalière ERA5 tombe entre Tmin et Tmax AgERA5 99,82 % des "
+    "jours-localités ; la demi-somme de Tmin et Tmax la dépasse de 0,13 °C en moyenne (0,41 en "
+    "valeur absolue)."
+)
 CONSTATS: dict[str, str] = {
-    "et0": "",
-    "t2m_min": "",
-    "t2m_max": "",
-    "vpd_tmax": "",
+    "et0": (
+        "Sur les jours de 1991-2025 : 4,02 mm/jour en moyenne aux 142 localités, de 3,38 à "
+        "San-Pédro à 5,29 à Doropo ; 4,85 en février, 3,26 en août. La formule de Hargreaves "
+        "(FAO-56), qui ne tient compte ni de l'humidité ni du vent, donne 4,19 mm/jour sur les "
+        "mêmes jours, corrélée à 0,75."
+    ),
+    "t2m_min": (
+        "Sur les jours de 1991-2025 : 22,36 °C en moyenne aux 142 localités, de 19,93 à "
+        f"Biankouma à 25,39 à Jacqueville ; 23,63 en avril, 21,28 en décembre. {_ERA5}"
+    ),
+    "t2m_max": (
+        "Sur les jours de 1991-2025 : 30,67 °C en moyenne aux 142 localités, de 26,71 à "
+        f"Sassandra à 33,17 à M’Bengué ; 33,53 en février, 27,67 en août. {_ERA5}"
+    ),
+    "vpd_tmax": (
+        "Sur les jours de 1991-2025 : 1,99 kPa en moyenne aux 142 localités, de 0,64 à "
+        "Jacqueville, sur la côte, à 3,15 à Tengréla, au nord ; 3,01 en février, 1,25 en août."
+    ),
 }
 NOTES: dict[tuple[str, str], str] = {}
 for _g, _grandeur in GRANDEURS_AGERA5.items():
