@@ -414,13 +414,16 @@ def _recouper(
                 horaire = ds["t2m"].values.astype(float).ravel() - 273.15
             extremes = fonction(horaire.reshape(-1, 24), axis=1)
             ag = np.array([v for _, v in series[g][codes[0]]])
+            if len(ag) != len(extremes):
+                raise SystemExit(f"{nom} : {len(extremes)} jours horaires, {len(ag)} AgERA5.")
             for d in (-1, 0, 1):
                 a = ag[max(0, d) : len(ag) + min(0, d)]
                 e = extremes[max(0, -d) : len(extremes) + min(0, -d)]
                 par_decalage[d].append(float(np.corrcoef(a, e)[0, 1]))
             par_decalage[9].append(float(np.mean(ag - extremes)))
         print(
-            f"{g} face aux extrêmes horaires ERA5 (110 nœuds) : corrélation moyenne décalage −1 "
+            f"{g} face aux extrêmes horaires ERA5 ({len(noeuds)} nœuds) : corrélation moyenne "
+            f"décalage −1 "
             f"{np.mean(par_decalage[-1]):.3f}, 0 {np.mean(par_decalage[0]):.3f}, +1 "
             f"{np.mean(par_decalage[1]):.3f} ; écart moyen {np.mean(par_decalage[9]):+.3f} °C"
         )
