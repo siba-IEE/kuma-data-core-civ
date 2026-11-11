@@ -31,8 +31,9 @@ def test_unites_et_grandeurs_peuplees(db_session: Session) -> None:
     # ecart_relatif_dni_sarah3_nasa (0019), ecart_relatif_dni_era5_nasa (0020)
     # et ecart_relatif_dhi_cams_nasa (0023) ; 5 grandeurs brutes CAMS (0058) :
     # ghi_ciel_clair, dni_ciel_clair, dhi_ciel_clair, irradiation_extraterrestre,
-    # fiabilite_satellite.
-    assert grandeurs == 46
+    # fiabilite_satellite ; 4 grandeurs brutes AgERA5 (0059) : et0, t2m_min, t2m_max,
+    # vpd_tmax.
+    assert grandeurs == 50
 
 
 def test_source_guineenne_retiree(db_session: Session) -> None:
@@ -53,6 +54,7 @@ def test_amont_generique_present(db_session: Session) -> None:
     # en 0052 (IMERG servi par NASA POWER, pluie journalière des épisodes de
     # lessivage) + chirps ajoutée en 0055 (pluie journalière CHIRPS v3.0). CAMS
     # (0014) réutilise cams_radiation (id 13, seed 0002), et le DNI SARAH-3/ERA5
-    # (0017, 0018) les sources de leur GHI : aucune source ajoutée.
-    assert {"era5_pvgis", "gpm_imerg", "chirps"} <= codes
-    assert len(codes) == 17
+    # (0017, 0018) les sources de leur GHI : aucune source ajoutée. agera5 ajoutée en
+    # 0059 (agroclimat AgERA5 : ET0, Tmin, Tmax, déficit de pression de vapeur).
+    assert {"era5_pvgis", "gpm_imerg", "chirps", "agera5"} <= codes
+    assert len(codes) == 18

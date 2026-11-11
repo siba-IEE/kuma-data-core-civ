@@ -20,7 +20,8 @@ confiance A viendra des mesures au sol.
 | Grandeur | Sources |
 |---|---|
 | Rayonnement GHI, DNI, DHI | NASA POWER, CAMS Radiation ; GHI et DNI aussi SARAH-3 et ERA5 (PVGIS) |
-| Température, humidité, vent | NASA POWER, ERA5 |
+| Température, humidité, vent | NASA POWER, ERA5 ; températures minimale et maximale : AgERA5 |
+| Évapotranspiration de référence, déficit de pression de vapeur | AgERA5 |
 | Pluie | NASA POWER, ERA5, GPM IMERG, CHIRPS |
 | Albédo | NASA POWER |
 | Ciel clair, irradiation extraterrestre, fiabilité satellite | CAMS Radiation |

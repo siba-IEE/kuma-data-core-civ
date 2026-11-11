@@ -102,6 +102,9 @@ FAMILLES: tuple[Famille, ...] = (
     Famille("pvgis-era5", "era5_pvgis", ("ghi", "dni"), ("mensuel",)),
     Famille("gpm-imerg", "gpm_imerg", ("precipitation",), ("journalier",)),
     Famille("chirps", "chirps", ("precipitation",), ("journalier",)),
+    Famille(
+        "agera5", "agera5", ("et0", "t2m_min", "t2m_max", "vpd_tmax"), ("mensuel", "journalier")
+    ),
 )
 
 _SQL_FAMILLES = """
