@@ -27,6 +27,7 @@ from kuma_data_core.db.seeds.agroclimat_agera5_civ import (
 )
 from kuma_data_core.db.seeds.audit_par_serie import empreinte_fichier
 from kuma_data_core.db.seeds.lots_civ import points_nationaux
+from kuma_data_core.db.seeds.meteo_era5_journaliere_civ import CONTRATS_METEO_ERA5_JOURNALIERS
 from kuma_data_core.db.seeds.series_csv import lire_series
 from tests.integration.db.journalier_csv import (
     agregats_base,
@@ -212,6 +213,132 @@ def test_tmin_sous_tmax(db_session: Session) -> None:
         {"mn": _codes("t2m_min", "journalier"), "mx": _codes("t2m_max", "journalier")},
     ).one()
     assert (r.n, r.inverses) == (142 * _NB_JOURS, 0)
+
+
+# Chiffres cités par les notes publiques : moyenne des 142 localités, localités extrêmes,
+# mois le plus haut et le plus bas (moyenne de tous les jours-localités du mois).
+_CITES: dict[str, tuple[str, tuple[str, str], tuple[str, str], tuple[int, str], tuple[int, str]]] = {
+    "et0": ("A_REMPLIR", ("", ""), ("", ""), (0, ""), (0, "")),
+    "t2m_min": ("A_REMPLIR", ("", ""), ("", ""), (0, ""), (0, "")),
+    "t2m_max": ("A_REMPLIR", ("", ""), ("", ""), (0, ""), (0, "")),
+    "vpd_tmax": ("A_REMPLIR", ("", ""), ("", ""), (0, ""), (0, "")),
+}
+
+
+@pytest.mark.parametrize("grandeur", _GRANDEURS)
+def test_moyennes_et_extremes_cites(db_session: Session, grandeur: str) -> None:
+    """Journalier 1991-2025 : moyenne, localités et mois extrêmes cités par les notes."""
+    moyenne, plus_basse, plus_haute, mois_bas, mois_haut = _CITES[grandeur]
+    par_localite = db_session.execute(
+        text(
+            """
+            SELECT l.code, COUNT(*) AS n, AVG(m.valeur::numeric) AS v
+            FROM mesures_ressource m JOIN series_metadonnees s ON s.id = m.serie_id
+            JOIN localites l ON l.id = s.localite_id
+            WHERE s.code = ANY(:c) GROUP BY l.code
+            """
+        ),
+        {"c": _codes(grandeur, "journalier")},
+    ).all()
+    assert len(par_localite) == 142 and {r.n for r in par_localite} == {_NB_JOURS}
+    assert round(sum(r.v for r in par_localite) / 142, 2) == Decimal(moyenne)
+    bas = min(par_localite, key=lambda r: r.v)
+    haut = max(par_localite, key=lambda r: r.v)
+    assert (bas.code, round(bas.v, 2)) == (plus_basse[0], Decimal(plus_basse[1]))
+    assert (haut.code, round(haut.v, 2)) == (plus_haute[0], Decimal(plus_haute[1]))
+    par_mois = db_session.execute(
+        text(
+            """
+            SELECT EXTRACT(MONTH FROM m.instant_mesure)::int AS mois, AVG(m.valeur::numeric) AS v
+            FROM mesures_ressource m JOIN series_metadonnees s ON s.id = m.serie_id
+            WHERE s.code = ANY(:c) GROUP BY 1
+            """
+        ),
+        {"c": _codes(grandeur, "journalier")},
+    ).all()
+    bas = min(par_mois, key=lambda r: r.v)
+    haut = max(par_mois, key=lambda r: r.v)
+    assert (bas.mois, round(bas.v, 2)) == (mois_bas[0], Decimal(mois_bas[1]))
+    assert (haut.mois, round(haut.v, 2)) == (mois_haut[0], Decimal(mois_haut[1]))
+
+
+def test_temperature_moyenne_era5_entre_tmin_et_tmax(db_session: Session) -> None:
+    """La température moyenne journalière ERA5 (0053) face à Tmin et Tmax AgERA5."""
+    r = db_session.execute(
+        text(
+            """
+            WITH j AS (
+                SELECT s.localite_id, m.instant_mesure AS t, s.grandeur_code AS g,
+                       m.valeur::numeric AS v
+                FROM mesures_ressource m JOIN series_metadonnees s ON s.id = m.serie_id
+                WHERE s.code = ANY(:c) AND m.valide_au IS NULL
+            ), p AS (
+                SELECT localite_id, t,
+                       MAX(v) FILTER (WHERE g = 't2m_min') AS tmin,
+                       MAX(v) FILTER (WHERE g = 't2m_max') AS tmax,
+                       MAX(v) FILTER (WHERE g = 't2m') AS era5
+                FROM j GROUP BY 1, 2
+            )
+            SELECT COUNT(*) AS n,
+                   AVG((era5 BETWEEN tmin AND tmax)::int) AS dedans,
+                   AVG((tmin + tmax) / 2 - era5) AS biais
+            FROM p
+            """
+        ),
+        {
+            "c": _codes("t2m_min", "journalier")
+            + _codes("t2m_max", "journalier")
+            + [CONTRATS_METEO_ERA5_JOURNALIERS["t2m"].code_serie(c) for c in _LOCALITES]
+        },
+    ).one()
+    assert r.n == 142 * _NB_JOURS
+    assert (round(100 * r.dedans, 2), round(r.biais, 2)) == (
+        Decimal("A_REMPLIR"),
+        Decimal("A_REMPLIR"),
+    )
+
+
+def test_hargreaves_cite(db_session: Session) -> None:
+    """ET0 AgERA5 face à Hargreaves (FAO-56, éq. 52) sur Tmin, Tmax et Ra (éq. 21 à 25)."""
+    r = db_session.execute(
+        text(
+            """
+            WITH j AS (
+                SELECT s.localite_id, m.instant_mesure AS t, s.grandeur_code AS g,
+                       m.valeur::float8 AS v
+                FROM mesures_ressource m JOIN series_metadonnees s ON s.id = m.serie_id
+                WHERE s.code = ANY(:c)
+            ), p AS (
+                SELECT l.latitude::float8 AS lat, EXTRACT(DOY FROM j.t) AS jour,
+                       MAX(v) FILTER (WHERE g = 'et0') AS et0,
+                       MAX(v) FILTER (WHERE g = 't2m_min') AS tmin,
+                       MAX(v) FILTER (WHERE g = 't2m_max') AS tmax
+                FROM j JOIN localites l ON l.id = j.localite_id GROUP BY l.id, j.t
+            ), a AS (
+                SELECT *, radians(lat) AS phi,
+                       1 + 0.033 * cos(2 * pi() * jour / 365) AS dr,
+                       0.409 * sin(2 * pi() * jour / 365 - 1.39) AS delta
+                FROM p
+            ), r AS (
+                SELECT *, acos(-tan(phi) * tan(delta)) AS ws FROM a
+            ), h AS (
+                SELECT et0,
+                       0.0023 * 0.408 * (24 * 60 / pi()) * 0.0820 * dr
+                       * (ws * sin(phi) * sin(delta) + cos(phi) * cos(delta) * sin(ws))
+                       * ((tmin + tmax) / 2 + 17.8) * sqrt(tmax - tmin) AS hg
+                FROM r
+            )
+            SELECT COUNT(*) AS n, AVG(et0) AS et0, AVG(hg) AS hg, CORR(et0, hg) AS r FROM h
+            """
+        ),
+        {"c": [c for g in ("et0", "t2m_min", "t2m_max") for c in _codes(g, "journalier")]},
+    ).one()
+    assert r.n == 142 * _NB_JOURS
+    assert (round(r.et0, 2), round(r.hg, 2), round(r.r, 2)) == (
+        "A_REMPLIR",
+        "A_REMPLIR",
+        "A_REMPLIR",
+    )
 
 
 def test_audit(db_session: Session) -> None:
