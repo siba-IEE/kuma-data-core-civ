@@ -494,4 +494,4 @@ def test_identite_des_sources_recalee(db_session: Session) -> None:
     row = db_session.execute(
         text("SELECT last_value, (SELECT MAX(id) FROM sources) AS maxi FROM sources_id_seq")
     ).one()
-    assert row.last_value >= row.maxi == 18
+    assert row.last_value >= row.maxi >= 18  # chirps (18), puis les sources suivantes

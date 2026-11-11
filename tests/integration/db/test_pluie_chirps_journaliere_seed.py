@@ -197,7 +197,7 @@ def test_pluies_journalieres_par_source(db_session: Session) -> None:
     seq = db_session.execute(
         text("SELECT last_value, (SELECT MAX(id) FROM sources) AS maxi FROM sources_id_seq")
     ).one()
-    assert seq.last_value >= seq.maxi == 18
+    assert seq.last_value >= seq.maxi >= 18  # chirps (18), puis les sources suivantes
 
 
 def test_recoupement_cite_par_la_note(db_session: Session) -> None:
